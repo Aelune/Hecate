@@ -190,13 +190,13 @@ _createSnapshot() {
 }
 
 # Update mirrorlist
-_updateMirrorlist() {
-    if _commandExists "reflector" && gum confirm "Update mirrorlist with reflector?"; then
-        echo -e "${BLUE}:: Updating mirrorlist...${NC}"
-        sudo reflector --country "$(curl -s ipinfo.io/country)" --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-        echo -e "${GREEN}:: Mirrorlist updated${NC}"
-    fi
-}
+# _updateMirrorlist() {
+#     if _commandExists "reflector" && gum confirm "Update mirrorlist with reflector?"; then
+#         echo -e "${BLUE}:: Updating mirrorlist...${NC}"
+#         sudo reflector --country "$(curl -s ipinfo.io/country)" --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+#         echo -e "${GREEN}:: Mirrorlist updated${NC}"
+#     fi
+# }
 
 # Perform system update
 _performUpdate() {
@@ -340,7 +340,7 @@ main() {
     _selectAURHelper
 
     # Update mirrorlist
-    _updateMirrorlist
+    # _updateMirrorlist
 
     # Create snapshot
     _createSnapshot
@@ -390,7 +390,10 @@ main() {
 }
 
 # Handle interrupts gracefully
-trap 'echo -e "\n${YELLOW}:: Update interrupted${NC}"; exit 130' INT TERM
+# If running inside kitty with title "update-window", auto-close when script exits
+if [[ "$KITTY_WINDOW_ID" != "" ]] || [[ "$(xprop -id $WINDOWID WM_CLASS 2>/dev/null | grep -i kitty)" ]]; then
+    trap 'pkill -f "kitty --title update-window"' EXIT
+fi
 
 # Run main function
 main "$@"
