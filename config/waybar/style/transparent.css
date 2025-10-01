@@ -9,100 +9,375 @@
 
 /* ==================== WAYBAR WINDOW ==================== */
 window#waybar {
-	background: transparent;
-	border-radius: 12px;
+	background: #1a110f;
+	/* border-radius: 10px; */
 	color: #e5e9f0;
 	border: 1px solid rgba(136, 192, 208, 0.15);
+	padding: 6px 10px;
 }
 
 window#waybar.hidden {
 	opacity: 0.2;
-	transition: opacity 0.3s ease-in-out;
 }
 
 window#waybar.empty,
 window#waybar.empty #window {
-	padding: 0px;
 	border: 0px;
-	background-color: transparent;
+	background-color: #1a110f;
 }
-
 
 /* ==================== WORKSPACES ==================== */
-#workspaces button.active {
-	color: #88c0d0;
-	border-radius: 12px;
-	padding: 4px 8px;
+#workspaces {
+	background: transparent;
+	padding: 0px;
 }
 
-#workspaces button.focused {
-	color: #d8dee9;
-}
-
-#workspaces button.urgent {
-	color: #2e3440;
-	border-radius: 10px;
+#workspaces button {
+	color: #4c566a;
+	border-radius: 8px;
+	padding: 4px 10px;
+	margin: 0px 2px;
+	background: transparent;
+	border: none;
+	transition: all 0.2s ease;
 }
 
 #workspaces button:hover {
-	color: #eceff4;
+	color: #88c0d0;
 }
 
+#workspaces button.active {
+	color: #eceff4;
+	background: rgba(136, 192, 208, 0.15);
+	border-radius: 8px;
+    margin-top: 2px;   /* 2px margin on top */
+    margin-bottom: 4px; /* 4px margin on bottom */
+    margin-left: 0px;   /* 0px margin on left */
+    margin-right: 0px;  /* 0px margin on right */
+}
 
+#workspaces button.urgent {
+	color: #bf616a;
+}
 
 /* ==================== MODULE STYLES ==================== */
-#bluetooth,
 #clock,
 #cpu,
 #disk,
 #memory,
 #mode,
 #power-profiles-daemon,
-#pulseaudio,
 #temperature,
 #tray,
 #window,
-#workspaces {
-	padding-top: 6px;
-	padding-bottom: 4px;
-	padding-right: 10px;
-	padding-left: 10px;
-	border-radius: 10px;
-    margin: 2px;
+#idle_inhibitor,
+#custom-swaync {
+	padding: 6px 12px;
+	margin: 0px 3px;
+	border-radius: 8px;
+	background: transparent;
+	transition: color 0.2s ease;
 }
 
-/* ==================== SPECIFIC MODULE ENHANCEMENTS ==================== */
+#bluetooth:hover,
+#clock:hover,
+#cpu:hover,
+#disk:hover,
+#memory:hover,
+#mode:hover,
+#power-profiles-daemon:hover,
+#pulseaudio:hover,
+#temperature:hover,
+#tray:hover,
+#window:hover,
+#idle_inhibitor:hover,
+#custom-swaync:hover {
+	color: #88c0d0;
+}
+
+/* ==================== CLOCK ==================== */
 #clock {
-	color: whitesmoke;
-	font-weight: 800;
-	padding: 8px 10px;
-	border-radius: 12px;
+	color: #eceff4;
+	font-weight: 600;
+	padding: 6px 16px;
 }
 
+/* ==================== CPU & MEMORY ==================== */
 #cpu {
-	color: whitesmoke;
+	color: #e5e9f0;
 }
 
-#cpu:hover {
-	background: rgba(163, 190, 140, 0.15);
-	border: 1px solid rgba(163, 190, 140, 0.4);
+#cpu.warning {
+	color: #ebcb8b;
 }
 
+#cpu.critical {
+	color: #bf616a;
+}
 
+#memory {
+	color: #e5e9f0;
+}
+
+#memory.warning {
+	color: #ebcb8b;
+}
+
+#memory.critical {
+	color: #bf616a;
+}
+
+/* ==================== TEMPERATURE ==================== */
 #temperature {
-	color: whitesmoke;
+	color: #e5e9f0;
 }
 
 #temperature.critical {
-	background: linear-gradient(45deg, rgba(191, 97, 106, 0.3), rgba(208, 135, 112, 0.3));
-	color: #eceff4;
+	color: #bf616a;
 }
 
+/* ==================== AUDIO ==================== */
 #pulseaudio {
-	color: #81a1c1;
+	color: #e5e9f0;
+    padding: 3px 9px;
 }
 
-/* ==================== INDICATORS ==================== */
+#pulseaudio.muted {
+	color: #4c566a;
+}
+
+#pulseaudio#microphone {
+	color: #e5e9f0;
+}
+
+#pulseaudio#microphone.source-muted {
+	color: #4c566a;
+}
+
+/* ==================== IDLE INHIBITOR ==================== */
+#idle_inhibitor {
+	color: #4c566a;
+}
+
 #idle_inhibitor.activated {
 	color: #a3be8c;
 }
+
+/* ==================== POWER PROFILES ==================== */
+#power-profiles-daemon {
+	color: #e5e9f0;
+}
+
+#power-profiles-daemon.performance {
+	color: #d08770;
+}
+
+#power-profiles-daemon.power-saver {
+	color: #a3be8c;
+}
+
+/* ==================== WINDOW TITLE ==================== */
+#window {
+	color: #88c0d0;
+	font-weight: 500;
+}
+
+#window.empty {
+	padding: 0px;
+	margin: 0px;
+}
+#custom-app_drawer_button {
+    padding: 6px 12px;
+    margin-left: 3px;
+}
+
+
+/* ==================== NOTIFICATIONS ==================== */
+#custom-swaync {
+	color: #e5e9f0;
+}
+
+/* ==================== POWER BUTTON ==================== */
+#custom-power {
+	color: #e5e9f0;
+	padding: 6px 14px;
+	margin: 0px 3px;
+	font-weight: 600;
+	border-radius: 8px;
+	transition: color 0.2s ease;
+}
+
+#custom-power:hover {
+	color: #bf616a;
+}
+
+/* ==================== TRAY ==================== */
+#tray {
+	padding: 6px 12px;
+}
+
+#tray > .passive {
+	-gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+	-gtk-icon-effect: highlight;
+}
+
+/* ==================== APP DRAWER ==================== */
+#custom-dMenu {
+	margin-left: 12px;
+}
+
+/* ==================== NETWORK ==================== */
+
+#network {
+    padding-left: 10px; /* Space on the left */
+    padding-right: 10px; /* Space on the right */
+}
+
+#network .icon {
+    color: #ffffff; /* Default color for the network icon */
+    transition: color 0.3s ease-in-out;
+}
+
+/* When connected */
+#network.connected .icon {
+    color: #4caf50; /* Green when connected */
+}
+
+/* When disconnected */
+#network.disconnected .icon {
+    color: #f44336; /* Red when disconnected */
+}
+
+/* When disabled */
+#network.disabled .icon {
+    color: #9e9e9e; /* Grey when disabled */
+}
+
+/* Wi-Fi signal strength */
+#network .icon-wifi {
+    color: #ff9800; /* Yellow for signal strength */
+}
+
+#network .icon-wifi-strong {
+    color: #4caf50; /* Green for strong signal */
+}
+
+#network .icon-wifi-weak {
+    color: #f44336; /* Red for weak signal */
+}
+
+#network .tooltip {
+    font-size: 12px;
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+/* Tooltip for Ethernet */
+#network.ethernet .tooltip {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+
+/* ==================== BULETOOTH ==================== */
+#bluetooth {
+    padding-left: 10px; /* Space on the left */
+    padding-right: 10px; /* Space on the right */
+}
+
+#bluetooth .icon {
+    color: #ffffff; /* Default color for the Bluetooth icon */
+    transition: color 0.3s ease-in-out;
+}
+
+/* When Bluetooth is connected */
+#bluetooth.connected .icon {
+    color: #2196f3; /* Blue when connected */
+}
+
+/* When Bluetooth is disabled */
+#bluetooth.disabled .icon {
+    color: #9e9e9e; /* Grey when disabled */
+}
+
+/* When there are multiple connections */
+#bluetooth.connected .num_connections {
+    color: #ffeb3b; /* Yellow for multiple connections */
+}
+
+/* Tooltip */
+#bluetooth .tooltip {
+    font-size: 12px;
+    color: #ffffff;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+/* Tooltip for enumerating connected devices */
+#bluetooth .tooltip-enumerate {
+    color: #ff9800; /* Orange for enumerated devices */
+}
+
+/* ==================== TASKBAR (DOCK) ==================== */
+#taskbar {
+    padding: 0px 8px;
+    background: #2b1e18; /* Lighter brown, complementary to #1a110f */
+    border-radius: 12px;
+    margin-top: 2px;
+    margin-bottom: 4px;
+    margin-left: 0px;
+    margin-right: 0px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+#taskbar button {
+    padding: 6px 12px;
+    margin: 0px 2px;
+}
+
+#taskbar button:hover {
+    background: rgba(140, 135, 140, 0.2);
+    border: 1px solid rgba(140, 135, 140, 0.4);
+}
+
+#taskbar button.active {
+    background: linear-gradient(135deg, rgba(137, 98, 93, 0.2), rgba(115, 78, 71, 0.2));
+}
+
+#taskbar button.urgent {
+    /* color: #eceff4;  */
+    background: linear-gradient(135deg, rgba(191, 97, 106, 0.4), rgba(208, 135, 112, 0.4));
+    border: 1px solid rgba(191, 97, 106, 0.6);
+    /* animation: urgent-pulse 1.5s ease-in-out infinite; */
+}
+
+#taskbar button.minimized {
+    opacity: 0.6;
+    /* color: rgba(216, 222, 233, 0.5); */
+    background: rgba(0, 0, 0, 0.2);
+}
+#taskbar.empty {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* @keyframes for urgent pulse */
+/* @keyframes urgent-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+} */
