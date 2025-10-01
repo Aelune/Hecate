@@ -26,6 +26,9 @@ NC='\033[0m' # No Color
 CONFIG_DIR="$HOME/.config/arch-updater"
 CONFIG_FILE="$CONFIG_DIR/config"
 
+# Track update result globally
+UPDATE_RESULT=0
+
 # Check if command exists
 _commandExists() {
     command -v "$1" >/dev/null 2>&1
@@ -189,15 +192,6 @@ _createSnapshot() {
     fi
 }
 
-# Update mirrorlist
-# _updateMirrorlist() {
-#     if _commandExists "reflector" && gum confirm "Update mirrorlist with reflector?"; then
-#         echo -e "${BLUE}:: Updating mirrorlist...${NC}"
-#         sudo reflector --country "$(curl -s ipinfo.io/country)" --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-#         echo -e "${GREEN}:: Mirrorlist updated${NC}"
-#     fi
-# }
-
 # Perform system update
 _performUpdate() {
     local update_failed=false
@@ -247,32 +241,11 @@ _performUpdate() {
         [[ $? -ne 0 ]] && update_failed=true
     fi
 
-    # Clean package cache
-    # if gum confirm "Clean package cache?"; then
-    #     echo -e "${BLUE}:: Cleaning package cache...${NC}"
-    #     if [[ "$AUR_HELPER" == "pacman" ]]; then
-    #         sudo pacman -Sc
-    #     else
-    #         $AUR_HELPER -Sc
-    #     fi
-    # fi
-
-    # Check for orphaned packages
-    # local orphans
-    # orphans=$(pacman -Qtdq 2>/dev/null)
-    # if [[ -n "$orphans" ]]; then
-    #     echo -e "${YELLOW}:: Found orphaned packages:${NC}"
-    #     echo "$orphans"
-    #     if gum confirm "Remove orphaned packages?"; then
-    #         echo "$orphans" | sudo pacman -Rns -
-    #     fi
-    # fi
-
-    # if [[ "$update_failed" == "true" ]]; then
-    #     return 1
-    # else
-    #     return 0
-    # fi
+    if [[ "$update_failed" == "true" ]]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 # Show system information
@@ -289,17 +262,73 @@ _showSystemInfo() {
     echo
 }
 
+# Display final summary and wait for user
+_displaySummary() {
+    local result=$1
+
+    echo
+    if [[ $result -eq 0 ]]; then
+        echo -e "${BOLD}           ✓ UPDATE COMPLETED SUCCESSFULLY${NC}${BOLD}         ${NC}"
+
+        # Notify if available
+        if _commandExists "notify-send"; then
+            notify-send "Arch Update" "System update completed successfully" --icon=software-update-available
+        fi
+
+        # Refresh waybar if running
+        # if pgrep -x waybar >/dev/null; then
+        #     pkill -RTMIN+1 waybar
+        #     echo -e "${BOLD}║${NC} ${BLUE}Waybar refreshed${NC}                                  ${BOLD}║${NC}"
+        # fi
+
+        # Check if reboot is needed
+        if [[ -f /var/run/reboot-required ]] || _commandExists "needrestart"; then
+            echo -e "${BOLD}            ${YELLOW}⚠ System reboot may be required${NC}"
+        fi
+
+    else
+        echo -e "${BOLD}${RED}           ✗ UPDATE COMPLETED WITH ERRORS${NC}${BOLD}"
+        echo -e "${BOLD}${RED}           Some packages may have failed to update${NC}"
+
+        if _commandExists "notify-send"; then
+            notify-send -u critical "Arch Update" "System update completed with errors" --icon=dialog-error
+        fi
+    fi
+
+    echo -e "${BOLD}${CYAN}           Press [ENTER] to close this window${NC}"
+    echo
+
+    # Force wait for user input - multiple methods for reliability
+    if _commandExists "gum"; then
+        gum input --placeholder "Press ENTER to exit..." --value "" > /dev/null 2>&1 || true
+    else
+        # Disable buffering and ensure we wait
+        read -r -p "" </dev/tty
+    fi
+}
+
+# Cleanup and exit handler
+_cleanup() {
+    # Save configuration before exit
+    _saveConfig 2>/dev/null || true
+}
+
 # Main execution
 main() {
+    # Set up cleanup trap
+    trap _cleanup EXIT
+
     # Check if running on Arch Linux
     if [[ ! -f /etc/arch-release ]]; then
         echo -e "${RED}:: This script is designed for Arch Linux only${NC}"
+        _displaySummary 1
         exit 1
     fi
 
     # Check for root
     if [[ $EUID -eq 0 ]]; then
         echo -e "${RED}:: Don't run this script as root${NC}"
+        _displaySummary 1
         exit 1
     fi
 
@@ -322,12 +351,14 @@ main() {
     if _commandExists "gum"; then
         if ! gum confirm "Start system update?"; then
             echo -e "${YELLOW}:: Update cancelled${NC}"
+            _displaySummary 1
             exit 0
         fi
     else
         read -p "Start system update? (Y/n): " confirm
         if [[ "$confirm" =~ ^[Nn]$ ]]; then
             echo -e "${YELLOW}:: Update cancelled${NC}"
+            _displaySummary 1
             exit 0
         fi
     fi
@@ -339,61 +370,41 @@ main() {
     # Select AUR helper
     _selectAURHelper
 
-    # Update mirrorlist
-    # _updateMirrorlist
-
     # Create snapshot
     _createSnapshot
 
     # Perform update
     echo
-    _performUpdate
-    update_result=$?
+    if _performUpdate; then
+        UPDATE_RESULT=0
+    else
+        UPDATE_RESULT=1
+    fi
 
     # Save configuration
     _saveConfig
 
-    # Post-update actions
-    echo
-    if [[ $update_result -eq 0 ]]; then
-        echo -e "${BOLD}${GREEN}:: Update completed successfully!${NC}"
-
-        # Notify if available
-        if _commandExists "notify-send"; then
-            notify-send "Arch Update" "System update completed successfully" --icon=software-update-available
-        fi
-
-        # Refresh waybar if running
-        if pgrep -x waybar >/dev/null; then
-            pkill -RTMIN+1 waybar
-            echo -e "${BLUE}:: Waybar refreshed${NC}"
-        fi
-
-        # Check if reboot is needed
+    # Check if reboot recommended and ask
+    if [[ $UPDATE_RESULT -eq 0 ]]; then
         if [[ -f /var/run/reboot-required ]] || _commandExists "needrestart"; then
-            echo -e "${YELLOW}:: System reboot may be required${NC}"
-            if gum confirm "Reboot now?"; then
-                sudo reboot
+            echo
+            echo -e "${YELLOW}:: System reboot is recommended${NC}"
+            if _commandExists "gum"; then
+                if gum confirm "Reboot now?"; then
+                    sudo reboot
+                fi
+            else
+                read -p "Reboot now? (y/N): " reboot_confirm
+                if [[ "$reboot_confirm" =~ ^[Yy]$ ]]; then
+                    sudo reboot
+                fi
             fi
-        fi
-
-    else
-        echo -e "${BOLD}${RED}:: Update completed with errors${NC}"
-        if _commandExists "notify-send"; then
-            notify-send "Arch Update" "System update completed with errors" --icon=dialog-error
         fi
     fi
 
-    echo
-    echo -e "${CYAN}:: Update process finished${NC}"
-    read -p "Press [ENTER] to exit..."
+    # Display final summary and wait
+    _displaySummary $UPDATE_RESULT
 }
-
-# Handle interrupts gracefully
-# If running inside kitty with title "update-window", auto-close when script exits
-if [[ "$KITTY_WINDOW_ID" != "" ]] || [[ "$(xprop -id $WINDOWID WM_CLASS 2>/dev/null | grep -i kitty)" ]]; then
-    trap 'pkill -f "kitty --title update-window"' EXIT
-fi
 
 # Run main function
 main "$@"
