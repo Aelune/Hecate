@@ -30,8 +30,7 @@ plugins=(
 # Load Oh-My-Zsh
 source $ZSH/oh-my-zsh.sh                        # Initialize Oh-My-Zsh with the configuration
 
-# Display a random Pokemon sprite on terminal startup (fun decoration)
-alias poke='pokemon-colorscripts --no-title -s -n'  # Show random Pokemon sprite
+# alias poke='pokemon-colorscripts --no-title -s -n'
 
 # System information display (alternative to neofetch)
 alias fast='fastfetch -c $HOME/.config/fastfetch/config-compact.jsonc'  # Display system info
@@ -91,8 +90,8 @@ eval $(thefuck --alias)                         # Initialize 'thefuck' alias
 
 # Load zsh-autosuggestions and zsh-syntax-highlighting if not loaded by Oh-My-Zsh
 # These should be at the end of .zshrc for proper functioning
-[ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-[ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# [ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+# [ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Autoload zsh functions for advanced usage
 autoload -Uz compinit                           # Initialize completion system

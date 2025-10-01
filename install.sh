@@ -206,7 +206,8 @@ install_dependencies() {
                 qt6-wayland \
                 cliphist \
                 swaync \
-                waypaper
+                waypaper \
+                exa
 
             log_success "All dependencies installed"
             ;;
@@ -254,9 +255,10 @@ install_dependencies() {
 # ═══════════════════════════════════════════════════════════════════════════
 #  Oh My Zsh Installation
 # ═══════════════════════════════════════════════════════════════════════════
-install_oh_my_zsh() {
+Set_zsh() {
     log_step "Installing Oh My Zsh"
 
+    # Install Oh My Zsh if not already present
     if [ -d "$HOME/.oh-my-zsh" ]; then
         log_warning "Oh My Zsh already installed, skipping..."
     else
@@ -264,6 +266,59 @@ install_oh_my_zsh() {
         sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
         log_success "Oh My Zsh installed"
     fi
+
+    # Ensure ZSH_CUSTOM path
+    ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
+    log_info "Using ZSH_CUSTOM at: $ZSH_CUSTOM"
+
+    echo -e "${BLUE}Installing Zsh plugins and dependencies...${NC}"
+
+    # --- Plugins ---
+    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
+        git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+        log_success "zsh-autosuggestions installed"
+    else
+        log_warning "zsh-autosuggestions already exists, skipping..."
+    fi
+
+    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
+        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+        log_success "zsh-syntax-highlighting installed"
+    else
+        log_warning "zsh-syntax-highlighting already exists, skipping..."
+    fi
+
+    if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
+        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
+        log_success "Powerlevel10k installed"
+    else
+        log_warning "Powerlevel10k already exists, skipping..."
+    fi
+
+    # --- FZF ---
+    if [ ! -d "$HOME/.fzf" ]; then
+        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+        ~/.fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish
+        log_success "fzf installed"
+    else
+        log_warning "fzf already exists, skipping..."
+    fi
+
+    # --- Thefuck ---
+    if ! command -v thefuck &>/dev/null; then
+        if command -v pipx &>/dev/null; then
+            pipx install thefuck
+        elif command -v pip3 &>/dev/null; then
+            pip3 install --user thefuck
+        fi
+        log_success "thefuck installed"
+    else
+        log_warning "thefuck already installed, skipping..."
+    fi
+    
+    log_info "Zsh setup complete. Remember to add plugins in ~/.zshrc:"
+    echo "plugins=(git zsh-autosuggestions zsh-syntax-highlighting)"
+    echo "ZSH_THEME=\"powerlevel10k/powerlevel10k\""
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -547,14 +602,14 @@ echo -e "${CYAN}[INFO] Updating Hyprland headers...${NC}"
 hyprpm update
 
 echo -e "${CYAN}[INFO] Installing hyprfocus...${NC}"
-hyprpm add https://github.com/VortexCoyote/hyprfocus || true
+hyprpm add https://github.com/pyt0xic/hyprfocus || true
 
 echo -e "${CYAN}[INFO] Installing Hyprspace...${NC}"
 hyprpm add https://github.com/KZDKM/Hyprspace || true
 
 echo -e "${CYAN}[INFO] Enabling plugins...${NC}"
 hyprpm enable hyprfocus || true
-hyprpm enable hyprspace || true
+hyprpm enable Hyprspace || true
 
 echo -e "${CYAN}[INFO] Reloading Hyprland...${NC}"
 hyprpm reload
@@ -611,7 +666,7 @@ main() {
     fi
 
     install_dependencies
-    install_oh_my_zsh
+    Set_zsh
     setup_sddm
     backup_configs
     clone_repo
