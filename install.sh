@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/YOUR_USERNAME/hecate"  # Replace with your actual repo URL
+REPO_URL="https://github.com/Aelune/hecate"
 INSTALL_DIR="$HOME/.hecate"
 CONFIG_DIR="$HOME/.config"
 BACKUP_DIR="$HOME/.config_backup_$(date +%Y%m%d_%H%M%S)"
@@ -289,28 +289,41 @@ set_zsh_shell() {
     fi
 }
 
-# Install Hyprland plugins (optional)
+# --- Install Hyprland plugins (hyprfocus, hyprspace) ---
 install_plugins() {
-    log_info "Setting up Hyprland plugins..."
+    echo "[INFO] Setting up Hyprland plugins..."
 
-    read -p "Do you want to install Hyprland plugins (hyprfocus, hyprspace)? (y/N): " response
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        log_info "Installing hyprpm..."
-
-        # Install plugins using hyprpm
-        if command -v hyprpm &> /dev/null; then
-            hyprpm update
-
-            # Add plugin repositories (adjust URLs as needed)
-            log_info "You can add plugins manually using 'hyprpm add <plugin-url>'"
-            log_info "Example plugins:"
-            echo "  - Hyprfocus: hyprpm add https://github.com/VortexCoyote/hyprfocus"
-            echo "  - Hyprspace: hyprpm add https://github.com/KZDKM/Hyprspace"
+    # Check hyprpm
+    if ! command -v hyprpm &>/dev/null; then
+        echo "[WARN] hyprpm not found. Installing..."
+        if command -v yay &>/dev/null; then
+            yay -S --noconfirm hyprpm
+        elif command -v paru &>/dev/null; then
+            paru -S --noconfirm hyprpm
         else
-            log_warning "hyprpm not found, skipping plugin installation"
+            echo "[ERROR] No AUR helper found (yay/paru). Install hyprpm manually."
+            return 1
         fi
     fi
+
+    # Update and install plugins
+    hyprpm update
+    hyprpm add https://github.com/VortexCoyote/hyprfocus || true
+    hyprpm add https://github.com/KZDKM/Hyprspace || true
 }
+
+# --- Enable and apply plugins ---
+setup_plugins() {
+    echo "[INFO] Enabling Hyprland plugins..."
+    hyprpm enable hyprfocus || true
+    hyprpm enable hyprspace || true
+
+    echo "[INFO] Reloading Hyprland with plugins..."
+    hyprpm reload
+    hyprctl reload
+    notify-send "Hyprland" "Hyprland plugins installed & enabled ✅"
+}
+
 
 # Main installation flow
 main() {
@@ -344,6 +357,7 @@ main() {
     install_dotfiles
     set_zsh_shell
     install_plugins
+    setup_plugins
 
     echo ""
     echo "╔════════════════════════════════════════╗"
