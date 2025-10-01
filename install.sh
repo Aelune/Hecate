@@ -54,15 +54,25 @@ detect_distro() {
     log_success "Detected distribution: $DISTRO"
 }
 
-# Install dependencies based on distro
-install_dependencies() {
-    log_info "Installing dependencies for $DISTRO..."
+# Check if Hyprland is installed
+check_hyprland() {
+    if command -v Hyprland &> /dev/null; then
+        HYPRLAND_VERSION=$(Hyprland --version 2>/dev/null | head -n1 || echo "unknown")
+        log_info "Hyprland detected: $HYPRLAND_VERSION"
+        return 0
+    else
+        log_warning "Hyprland not found"
+        return 1
+    fi
+}
+
+# Install/Update Hyprland
+install_hyprland() {
+    log_info "Installing/Updating Hyprland..."
 
     case $DISTRO in
         arch|manjaro|endeavouros)
-            log_info "Using pacman/yay for Arch-based system"
-
-            # Check if yay is installed, install if not
+            # Check if yay is installed
             if ! command -v yay &> /dev/null; then
                 log_warning "yay not found, installing..."
                 sudo pacman -S --needed --noconfirm git base-devel
@@ -73,9 +83,71 @@ install_dependencies() {
                 cd -
             fi
 
+            log_info "Installing Hyprland and required build tools..."
+            yay -S --needed --noconfirm hyprland hyprland-protocols xdg-desktop-portal-hyprland
+            yay -S --needed --noconfirm cmake meson cpio ninja base-devel
+
+            log_success "Hyprland installed/updated"
+            ;;
+
+        fedora)
+            log_info "Installing Hyprland on Fedora..."
+            sudo dnf install -y hyprland hyprland-devel cmake meson cpio ninja-build
+            ;;
+
+        ubuntu|debian|pop)
+            log_warning "Building Hyprland from source on Debian/Ubuntu..."
+            log_info "Installing build dependencies..."
+
+            sudo apt update
+            sudo apt install -y \
+                build-essential cmake meson ninja-build cpio \
+                libwayland-dev wayland-protocols \
+                libxcb-composite0-dev libxcb-ewmh-dev libxcb-icccm4-dev \
+                libxcb-render-util0-dev libxcb-res0-dev libxcb-xfixes0-dev \
+                libxcb-xinput-dev libxkbcommon-dev libpixman-1-dev \
+                libdrm-dev libseat-dev libinput-dev \
+                libpango1.0-dev libcairo2-dev \
+                hwdata libliftoff-dev libdisplay-info-dev \
+                git
+
+            log_info "Cloning and building Hyprland..."
+            cd /tmp
+            if [ -d "Hyprland" ]; then
+                rm -rf Hyprland
+            fi
+            git clone --recursive https://github.com/hyprwm/Hyprland
+            cd Hyprland
+            make all
+            sudo make install
+
+            log_success "Hyprland built and installed from source"
+            ;;
+
+        nixos)
+            log_warning "On NixOS, add Hyprland to your configuration.nix:"
+            echo "  programs.hyprland.enable = true;"
+            read -p "Press enter when Hyprland is installed..."
+            ;;
+
+        *)
+            log_error "Unsupported distribution for automatic Hyprland installation"
+            log_warning "Please install Hyprland manually from: https://hyprland.org"
+            read -p "Press enter when Hyprland is installed..."
+            ;;
+    esac
+}
+
+# Install dependencies based on distro
+install_dependencies() {
+    log_info "Installing dependencies for $DISTRO..."
+
+    case $DISTRO in
+        arch|manjaro|endeavouros)
+            log_info "Using pacman/yay for Arch-based system"
+
             # Install dependencies
             yay -S --needed --noconfirm \
-                hyprland \
                 waybar \
                 fastfetch \
                 kitty \
@@ -99,13 +171,15 @@ install_dependencies() {
                 polkit-kde-agent \
                 xdg-desktop-portal-hyprland \
                 qt5-wayland \
-                qt6-wayland
+                qt6-wayland \
+                cliphist \
+                swaync \
+                waypaper
             ;;
 
         fedora)
             log_info "Using dnf for Fedora"
             sudo dnf install -y \
-                hyprland \
                 waybar \
                 fastfetch \
                 kitty \
@@ -122,10 +196,7 @@ install_dependencies() {
                 pavucontrol \
                 playerctl
 
-            # Install swww from source or copr if not available
-            if ! command -v swww &> /dev/null; then
-                log_warning "swww not in repos, you may need to install manually"
-            fi
+            log_warning "Some packages (swww, hyprlock) may need manual installation"
             ;;
 
         ubuntu|debian|pop)
@@ -144,34 +215,20 @@ install_dependencies() {
                 libnotify-bin \
                 wf-recorder \
                 pavucontrol \
-                playerctl \
-                build-essential \
-                git \
-                cmake \
-                meson \
-                ninja-build
+                playerctl
 
-            log_warning "Hyprland, waybar, and some packages need to be built from source on Debian/Ubuntu"
-            log_warning "Please visit https://hyprland.org for build instructions"
+            log_warning "waybar and some packages need to be built from source"
             ;;
 
         nixos)
-            log_info "NixOS detected - please add packages to your configuration.nix"
-            log_warning "This script cannot install packages on NixOS"
-            log_warning "Add the following to your configuration.nix:"
-            echo "  environment.systemPackages = with pkgs; ["
-            echo "    hyprland waybar fastfetch kitty firefox zsh cava rofi"
-            echo "    grim slurp wl-clipboard jq libnotify swww wf-recorder"
-            echo "  ];"
+            log_info "NixOS detected - add packages to configuration.nix"
+            log_warning "Add required packages to your configuration.nix"
             read -p "Press enter when packages are installed..."
             ;;
 
         *)
             log_error "Unsupported distribution: $DISTRO"
-            log_warning "Please install dependencies manually:"
-            echo "  - hyprland, waybar, fastfetch, kitty, firefox, zsh"
-            echo "  - cava, rofi, rofi-emoji, grim, slurp, wl-clipboard"
-            echo "  - jq, libnotify, swww, wf-recorder, hyprlock, hypridle"
+            log_warning "Please install dependencies manually"
             read -p "Press enter when ready to continue..."
             ;;
     esac
@@ -204,14 +261,15 @@ backup_configs() {
         "kitty"
         "fastfetch"
         "wlogout"
-        "zsh"
+        "rofi"
+        "swaync"
     )
 
     for dir in "${DIRS_TO_BACKUP[@]}"; do
         if [ -d "$CONFIG_DIR/$dir" ]; then
             log_info "Backing up $dir..."
             cp -r "$CONFIG_DIR/$dir" "$BACKUP_DIR/"
-            log_success "Backed up $dir to $BACKUP_DIR"
+            log_success "Backed up $dir"
         fi
     done
 
@@ -250,7 +308,6 @@ install_dotfiles() {
     if [ -d "config" ]; then
         log_info "Copying configuration files..."
 
-        # Copy each config directory
         for item in config/*; do
             if [ -d "$item" ]; then
                 dir_name=$(basename "$item")
@@ -283,47 +340,71 @@ set_zsh_shell() {
 
     if [ "$SHELL" != "$(which zsh)" ]; then
         chsh -s "$(which zsh)"
-        log_success "Zsh set as default shell (restart required)"
+        log_success "Zsh set as default shell"
     else
         log_info "Zsh is already the default shell"
     fi
 }
 
-# --- Install Hyprland plugins (hyprfocus, hyprspace) ---
+# Install Hyprland plugins (only after Hyprland is confirmed running)
 install_plugins() {
-    echo "[INFO] Setting up Hyprland plugins..."
+    log_info "Preparing Hyprland plugin installation..."
 
-    # Check hyprpm
-    if ! command -v hyprpm &>/dev/null; then
-        echo "[WARN] hyprpm not found. Installing..."
-        if command -v yay &>/dev/null; then
-            yay -S --noconfirm hyprpm
-        elif command -v paru &>/dev/null; then
-            paru -S --noconfirm hyprpm
-        else
-            echo "[ERROR] No AUR helper found (yay/paru). Install hyprpm manually."
-            return 1
-        fi
-    fi
+    # Create a post-install script for plugins
+    cat > "$HOME/.hecate-install-plugins.sh" << 'EOF'
+#!/bin/bash
+# Post-install script for Hyprland plugins
+# Run this AFTER logging into Hyprland
 
-    # Update and install plugins
-    hyprpm update
-    hyprpm add https://github.com/VortexCoyote/hyprfocus || true
-    hyprpm add https://github.com/KZDKM/Hyprspace || true
+set -e
+
+echo "[INFO] Installing Hyprland plugins..."
+
+# Check if running in Hyprland
+if [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+    echo "[ERROR] Not running in Hyprland session!"
+    echo "[INFO] Please log into Hyprland first, then run this script"
+    exit 1
+fi
+
+# Check hyprpm
+if ! command -v hyprpm &>/dev/null; then
+    echo "[ERROR] hyprpm not found!"
+    exit 1
+fi
+
+# Update headers
+echo "[INFO] Updating Hyprland headers..."
+hyprpm update
+
+# Install plugins
+echo "[INFO] Installing hyprfocus..."
+hyprpm add https://github.com/VortexCoyote/hyprfocus || true
+
+echo "[INFO] Installing Hyprspace..."
+hyprpm add https://github.com/KZDKM/Hyprspace || true
+
+# Enable plugins
+echo "[INFO] Enabling plugins..."
+hyprpm enable hyprfocus || true
+hyprpm enable hyprspace || true
+
+# Reload
+echo "[INFO] Reloading Hyprland..."
+hyprpm reload
+hyprctl reload
+
+notify-send "Hecate" "Hyprland plugins installed successfully!" || true
+
+echo "[SUCCESS] Plugins installed and enabled!"
+echo "You can now delete this script: rm ~/.hecate-install-plugins.sh"
+EOF
+
+    chmod +x "$HOME/.hecate-install-plugins.sh"
+
+    log_success "Plugin installer script created at: ~/.hecate-install-plugins.sh"
+    log_info "Run this script AFTER logging into Hyprland"
 }
-
-# --- Enable and apply plugins ---
-setup_plugins() {
-    echo "[INFO] Enabling Hyprland plugins..."
-    hyprpm enable hyprfocus || true
-    hyprpm enable hyprspace || true
-
-    echo "[INFO] Reloading Hyprland with plugins..."
-    hyprpm reload
-    hyprctl reload
-    notify-send "Hyprland" "Hyprland plugins installed & enabled ✅"
-}
-
 
 # Main installation flow
 main() {
@@ -335,9 +416,10 @@ main() {
 
     log_warning "This script will:"
     echo "  1. Detect your Linux distribution"
-    echo "  2. Install required dependencies"
-    echo "  3. Backup existing configurations"
-    echo "  4. Clone and install Hecate dotfiles"
+    echo "  2. Install/Update Hyprland"
+    echo "  3. Install required dependencies"
+    echo "  4. Backup existing configurations"
+    echo "  5. Clone and install Hecate dotfiles"
     echo ""
     read -p "Continue? (y/N): " confirm
 
@@ -350,6 +432,18 @@ main() {
 
     # Run installation steps
     detect_distro
+
+    # Check and install/update Hyprland
+    if ! check_hyprland; then
+        log_warning "Hyprland not found. Installing..."
+        install_hyprland
+    else
+        read -p "Update Hyprland? (y/N): " update_hypr
+        if [[ "$update_hypr" =~ ^[Yy]$ ]]; then
+            install_hyprland
+        fi
+    fi
+
     install_dependencies
     install_oh_my_zsh
     backup_configs
@@ -357,7 +451,6 @@ main() {
     install_dotfiles
     set_zsh_shell
     install_plugins
-    setup_plugins
 
     echo ""
     echo "╔════════════════════════════════════════╗"
@@ -367,11 +460,12 @@ main() {
     log_success "Hecate dotfiles installed successfully!"
     echo ""
     log_info "Next steps:"
-    echo "  1. Log out and log back in (or reboot)"
-    echo "  2. Select Hyprland as your session at login"
-    echo "  3. Your old configs are backed up at: $BACKUP_DIR"
+    echo "  1. Log out and log back in"
+    echo "  2. Select 'Hyprland' at the login screen"
+    echo "  3. Once in Hyprland, run: ~/.hecate-install-plugins.sh"
+    echo "  4. Your old configs are backed up at: $BACKUP_DIR"
     echo ""
-    log_info "For keybindings, check: ~/.config/hypr/documentation/keybinds.md"
+    log_info "Keybindings: ~/.config/hypr/keybinds.conf"
     echo ""
 }
 
