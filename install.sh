@@ -436,7 +436,7 @@ install_dotfiles() {
         [ -L "$CONFIG_DIR/waybar/style.css" ] && rm "$CONFIG_DIR/waybar/style.css"
 
         ln -sf "$CONFIG_DIR/waybar/configs/top" "$CONFIG_DIR/waybar/config"
-        ln -sf "$CONFIG_DIR/waybar/style/transparent.css" "$CONFIG_DIR/waybar/style.css"
+        ln -sf "$CONFIG_DIR/waybar/style/delete.css" "$CONFIG_DIR/waybar/style.css"
 
         log_success "Waybar installed with symlinks"
     fi
