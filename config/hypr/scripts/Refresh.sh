@@ -1,5 +1,5 @@
 #!/bin/bash
-# Scripts for refreshing ags, waybar, swaync, wallust
+# Scripts for refreshing Hyprland + components (waybar, swaync, ags, wallust, hyprpm)
 
 #  _   _ _____ ____    _  _____ _____
 # | | | | ____/ ___|  / \|_   _| ____|     /\_/\
@@ -8,7 +8,6 @@
 # |_| |_|_____\____/_/   \_\_| |_____|
 
 SCRIPTSDIR="$HOME/.config/hypr/scripts"
-UserScripts="$HOME/.config/hypr/UserScripts"
 
 # --- helpers ---
 file_exists() {
@@ -23,7 +22,6 @@ done
 
 # --- restart waybar ---
 sleep 1
-# run Waybar silently (suppress dbus warnings, log to cache)
 WAYBAR_DISABLE_DBUS=1 waybar >~/.cache/waybar.log 2>&1 &
 
 # --- restart swaync ---
@@ -37,10 +35,18 @@ swaync-client --reload-config >/dev/null 2>&1 || true
 # --- optional Quickshell restart ---
 # pkill -x qs && qs >/dev/null 2>&1 &
 
-# --- relaunch rainbow borders if present ---
-sleep 1
-if file_exists "${UserScripts}/RainbowBorders.sh"; then
-    "${UserScripts}/RainbowBorders.sh" &
+# --- refresh Hyprland config ---
+hyprctl reload >/dev/null 2>&1 || true
+
+# --- hyprpm reload if requested ---
+if [[ "$1" == "hyprpm" ]]; then
+    if [[ -n "$2" ]]; then
+        echo ":: Reloading hyprpm plugin: $2"
+        hyprpm reload "$2"
+    else
+        echo ":: Reloading all hyprpm plugins"
+        hyprpm reload all
+    fi
 fi
 
 exit 0

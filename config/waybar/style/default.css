@@ -30,6 +30,7 @@ window#waybar.empty #window {
 #workspaces {
 	background: transparent;
 	padding: 0px;
+    padding-left: 8px;
 }
 
 #workspaces button {
@@ -92,7 +93,7 @@ window#waybar.empty #window {
 #window:hover,
 #idle_inhibitor:hover,
 #custom-swaync:hover {
-	color: #88c0d0;
+	color: #4c566a;
 }
 
 /* ==================== CLOCK ==================== */
@@ -325,14 +326,14 @@ window#waybar.empty #window {
 
 /* ==================== TASKBAR (DOCK) ==================== */
 #taskbar {
-    padding: 0px 8px;
-    background: #2b1e18; /* Lighter brown, complementary to #1a110f */
+    padding: 2px 8px;
+    background: #2b1e18;
     border-radius: 12px;
     margin-top: 2px;
     margin-bottom: 4px;
     margin-left: 0px;
-    margin-right: 0px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    margin-right: 2px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 #taskbar button {
@@ -341,12 +342,13 @@ window#waybar.empty #window {
 }
 
 #taskbar button:hover {
-    background: rgba(140, 135, 140, 0.2);
+    /* background: rgba(140, 135, 140, 0.2); */
     border: 1px solid rgba(140, 135, 140, 0.4);
 }
 
 #taskbar button.active {
-    background: linear-gradient(135deg, rgba(137, 98, 93, 0.2), rgba(115, 78, 71, 0.2));
+    border: 1px solid rgba(140, 135, 140, 0.4);
+    /* background: linear-gradient(135deg, rgba(137, 98, 93, 0.1), rgba(115, 78, 71, 0.1)); */
 }
 
 #taskbar button.urgent {

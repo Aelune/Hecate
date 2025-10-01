@@ -1,80 +1,29 @@
 
 {
 "include": [
-  "/home/dawu/.config/waybar/module"],
+  "$HOME/.config/waybar/modules"],
 "layer": "top",
 "position": "top",
 "exclusive": true,
 "passthrough": false,
 "gtk-layer-shell": true,
-// "margin-left": 6,
-// "margin-right": 6,
-// "margin-top": 8,
-"height": 36,
 "start_hidden" : false,
 "fixed-center": true,
 "swap-icon-label": false,
 "modules-left": [
- "custom/dMenu"
-//   "idle_inhibitor",
-//   "hyprland/workspaces"
-//   "group/motherboard"
+ "custom/dMenu",
+ "hyprland/workspaces"
 ],
 "modules-center": [
-    "cpu",
-    "memory",
-    // "custom/media",
-    // "hyprland/window",
     "wlr/taskbar",
     "clock#2"
 ],
 "modules-right": [
-    // "hyprland/window",
+    "group/motherboard",
     "pulseaudio",
     "pulseaudio#microphone",
-    "custom/swaync",
+    "group/notify",
     "network",
-    // "bluetooth",
     "custom/power"
-],
-
-// "hyprland/window": {
-//     "format": "{}",
-//     "max-length": 40,
-//     "separate-outputs": true,
-//     "icon": true,
-//     "icon-size": 16,
-//     // "rewrite": {
-//     //   "(.*) — Mozilla Firefox": "󰈹 $1",
-//     //   "(.*) - Firefox": "󰈹 $1",
-//     //   "(.*) - Visual Studio Code": "󰨞 $1",
-//     //   "(.*) — Dolphin": "󰉋 $1",
-//     //   "(.*)Spotify": "󰓇 Spotify",
-//     //   "(.*)Discord": "󰙯 Discord",
-//     //   "(.*)Telegram": " Telegram",
-//     //   "(.*) - Brave": "󰖟 $1"
-//     // }
-//   },
-
-  "custom/swaync": {
-    "tooltip": true,
-    "tooltip-format": "Left: Notification Center\nRight: Do Not Disturb",
-    "format": "{icon}",
-    "format-icons": {
-      "notification": "<span foreground='#bf616a'>󱅫</span>",
-      "none": "󰂚",
-      "dnd-notification": "<span foreground='#bf616a'>󰂛</span>",
-      "dnd-none": "󰂛",
-      "inhibited-notification": "<span foreground='#bf616a'>󱅫</span>",
-      "inhibited-none": "󰂚",
-      "dnd-inhibited-notification": "<span foreground='#bf616a'>󰂛</span>",
-      "dnd-inhibited-none": "󰂛"
-    },
-    "return-type": "json",
-    "exec-if": "which swaync-client",
-    "exec": "swaync-client -swb",
-    "on-click": "sleep 0.1 && swaync-client -t -sw",
-    "on-click-right": "swaync-client -d -sw",
-    "escape": true
-  },
+]
 }
