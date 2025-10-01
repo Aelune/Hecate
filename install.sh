@@ -275,8 +275,8 @@ backup_configs() {
 
     # Backup .zshrc if it exists
     if [ -f "$HOME/.zshrc" ]; then
-        log_info "Backing up .zshrc..."
-        cp "$HOME/.zshrc" "$BACKUP_DIR/"
+        log_info "Backing up .zshrc from home directory..."
+        cp "$HOME/.zshrc" "$BACKUP_DIR/.zshrc"
     fi
 
     log_success "Backup completed at $BACKUP_DIR"
@@ -301,34 +301,72 @@ install_dotfiles() {
 
     cd "$INSTALL_DIR"
 
-    # Create .config directory if it doesn't exist
+    # Create necessary directories
     mkdir -p "$CONFIG_DIR"
+    mkdir -p "$CONFIG_DIR/waybar"
+    mkdir -p "$CONFIG_DIR/kitty"
+    mkdir -p "$CONFIG_DIR/fastfetch"
 
-    # Copy config directories
-    if [ -d "config" ]; then
-        log_info "Copying configuration files..."
-
-        for item in config/*; do
-            if [ -d "$item" ]; then
-                dir_name=$(basename "$item")
-                log_info "Installing $dir_name..."
-
-                # Remove existing config if present
-                if [ -d "$CONFIG_DIR/$dir_name" ]; then
-                    rm -rf "$CONFIG_DIR/$dir_name"
-                fi
-
-                cp -r "$item" "$CONFIG_DIR/"
-                log_success "$dir_name installed"
-            fi
-        done
+    # Install hypr config
+    if [ -d "config/hypr" ]; then
+        log_info "Installing hypr configuration..."
+        [ -d "$CONFIG_DIR/hypr" ] && rm -rf "$CONFIG_DIR/hypr"
+        cp -r "config/hypr" "$CONFIG_DIR/"
+        chmod +x "$CONFIG_DIR/hypr/scripts/"*.sh
+        log_success "hypr installed"
     fi
 
-    # Make scripts executable
-    if [ -d "$CONFIG_DIR/hypr/scripts" ]; then
-        log_info "Making scripts executable..."
-        chmod +x "$CONFIG_DIR/hypr/scripts/"*.sh
-        log_success "Scripts are now executable"
+    # Install wlogout config
+    if [ -d "config/wlogout" ]; then
+        log_info "Installing wlogout configuration..."
+        [ -d "$CONFIG_DIR/wlogout" ] && rm -rf "$CONFIG_DIR/wlogout"
+        cp -r "config/wlogout" "$CONFIG_DIR/"
+        log_success "wlogout installed"
+    fi
+
+    # Install waybar with symlinks
+    if [ -d "config/waybar" ]; then
+        log_info "Installing waybar configuration..."
+
+        # Copy waybar directory structure
+        [ -d "$CONFIG_DIR/waybar/configs" ] && rm -rf "$CONFIG_DIR/waybar/configs"
+        [ -d "$CONFIG_DIR/waybar/style" ] && rm -rf "$CONFIG_DIR/waybar/style"
+        [ -d "$CONFIG_DIR/waybar/module" ] && rm -rf "$CONFIG_DIR/waybar/module"
+
+        cp -r "config/waybar/configs" "$CONFIG_DIR/waybar/"
+        cp -r "config/waybar/style" "$CONFIG_DIR/waybar/"
+        cp -r "config/waybar/module" "$CONFIG_DIR/waybar/"
+
+        # Create symlinks
+        [ -L "$CONFIG_DIR/waybar/config" ] && rm "$CONFIG_DIR/waybar/config"
+        [ -L "$CONFIG_DIR/waybar/style.css" ] && rm "$CONFIG_DIR/waybar/style.css"
+
+        ln -sf "$CONFIG_DIR/waybar/configs/top" "$CONFIG_DIR/waybar/config"
+        ln -sf "$CONFIG_DIR/waybar/style/default.css" "$CONFIG_DIR/waybar/style.css"
+
+        log_success "waybar installed with symlinks"
+    fi
+
+    # Install kitty config
+    if [ -f "config/kitty/kitty.conf" ]; then
+        log_info "Installing kitty configuration..."
+        cp "config/kitty/kitty.conf" "$CONFIG_DIR/kitty/"
+        log_success "kitty.conf installed"
+    fi
+
+    # Install fastfetch config
+    if [ -f "config/fastfetch/config.jsonc" ]; then
+        log_info "Installing fastfetch configuration..."
+        cp "config/fastfetch/config.jsonc" "$CONFIG_DIR/fastfetch/"
+        log_success "fastfetch config.jsonc installed"
+    fi
+
+    # Install zsh config to home directory
+    if [ -f "config/zsh/.zshrc" ]; then
+        log_info "Installing .zshrc to home directory..."
+        [ -f "$HOME/.zshrc" ] && mv "$HOME/.zshrc" "$BACKUP_DIR/.zshrc.bak"
+        cp "config/zsh/.zshrc" "$HOME/"
+        log_success ".zshrc installed to $HOME"
     fi
 
     log_success "Dotfiles installation completed"
