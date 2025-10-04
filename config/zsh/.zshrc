@@ -16,7 +16,7 @@ export PATH="$HOME/.local/bin:$PATH"              # User local binaries
 
 # Theme Configuration
 ZSH_THEME="powerlevel10k/powerlevel10k"          # Set the ZSH theme to Powerlevel10k
-
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 # Enhanced Plugins
 plugins=(
     sudo                 # Press ESC twice to prepend sudo
@@ -71,8 +71,7 @@ alias pic='cd ~/Pictures/'                  # Jump to Programming
 alias rdb='rm ~/.cache/cliphist/db'
 
 # System utilities
-alias upgrade='sudo pacman -Syu'                # Update Arch Linux
-alias services='systemctl --type=service --state=running' # List running services
+# alias upgrade='sudo pacman -Syu'                # Update Arch Linux
 alias meminfo='free -m'                         # Show memory info
 alias cpuinfo='cat /proc/cpuinfo'               # Show CPU info
 alias ports='sudo netstat -tulanp'              # Show open ports
@@ -104,7 +103,3 @@ cdf() {
 
 # Bind Ctrl+G to run `cdf`
 bindkey -s '^G' 'cdf\n'
-
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-# The next line updates PATH for the govm binary.
-export PATH=$PATH:$HOME/.govm/bin
