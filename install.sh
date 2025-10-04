@@ -1,705 +1,760 @@
 #!/bin/bash
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  🐾 Hecate Hyprland Dotfiles Installer
-#  Automated installation script with distro detection and dependency management
-#  Repository: https://github.com/Aelune/hecate
-# ═══════════════════════════════════════════════════════════════════════════
+# Hyprland Dotfiles Installer with Gum
+# Author: Hecate Dotfiles
+# Description: Interactive installer for Hyprland configuration
 
 set -e
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Color Definitions
-# ═══════════════════════════════════════════════════════════════════════════
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Configuration
-# ═══════════════════════════════════════════════════════════════════════════
-REPO_URL="https://github.com/Aelune/hecate"
-INSTALL_DIR="$HOME/.hecate"
-CONFIG_DIR="$HOME/.config"
-BACKUP_DIR="$HOME/.config_backup_$(date +%Y%m%d_%H%M%S)"
+# Global Variables
+HECATEDIR="$HOME/Hecate"
+CONFIGDIR="$HOME/.config"
+REPO_URL="https://github.com/Aelune/Hecate.git"
+OS=""
+PACKAGE_MANAGER=""
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Logging Functions
-# ═══════════════════════════════════════════════════════════════════════════
-print_banner() {
-    echo -e "${MAGENTA}${BOLD}"
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║                                                               ║"
-    echo "║              🐾  H E C A T E   I N S T A L L E R             ║"
-    echo "║                                                               ║"
-    echo "║          Hyprland Dotfiles by Aelune                         ║"
-    echo "║          https://github.com/Aelune/hecate                    ║"
-    echo "║                                                               ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
+# Check if gum is installed
+check_gum() {
+    if ! command -v gum &> /dev/null; then
+        echo -e "${RED}Gum is not installed!${NC}"
+        echo -e "${YELLOW}Gum is required for this installer to work.${NC}"
+        echo ""
+        echo "Please install Gum using one of the following methods:"
+        echo ""
+        echo "Arch Linux:"
+        echo "  sudo pacman -S gum"
+        echo ""
+        echo "Fedora:"
+        echo "  sudo dnf install gum"
+        echo ""
+        echo "Ubuntu/Debian:"
+        echo "  sudo mkdir -p /etc/apt/keyrings"
+        echo "  curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg"
+        echo "  echo \"deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *\" | sudo tee /etc/apt/sources.list.d/charm.list"
+        echo "  sudo apt update && sudo apt install gum"
+        echo ""
+        echo "Or visit: https://github.com/charmbracelet/gum"
+        exit 1
+    fi
 }
 
-log_info() {
-    echo -e "${CYAN}${BOLD}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}${BOLD}[✓]${NC} ${GREEN}$1${NC}"
-}
-
-log_warning() {
-    echo -e "${YELLOW}${BOLD}[!]${NC} ${YELLOW}$1${NC}"
-}
-
-log_error() {
-    echo -e "${RED}${BOLD}[✗]${NC} ${RED}$1${NC}"
-}
-
-log_step() {
-    echo -e "\n${BLUE}${BOLD}═══ $1 ═══${NC}\n"
-}
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  Distribution Detection
-# ═══════════════════════════════════════════════════════════════════════════
-detect_distro() {
-    log_step "Detecting Linux Distribution"
-
+# Check OS
+check_OS() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        DISTRO=$ID
-        DISTRO_LIKE=$ID_LIKE
-    elif [ -f /etc/lsb-release ]; then
-        . /etc/lsb-release
-        DISTRO=$DISTRIB_ID
+        case "$ID" in
+            arch|manjaro|endeavouros)
+                OS="arch"
+                ;;
+            fedora)
+                OS="fedora"
+                ;;
+            ubuntu|debian|pop|linuxmint)
+                OS="ubuntu"
+                ;;
+            *)
+                gum style --foreground 196 --bold "Error: OS '$ID' is not supported!"
+                gum style --foreground 220 "Supported: Arch Linux, Fedora, Ubuntu/Debian"
+                exit 1
+                ;;
+        esac
     else
-        log_error "Cannot detect distribution"
+        gum style --foreground 196 --bold "Error: Cannot detect OS!"
+        exit 1
+    fi
+    gum style --foreground 82 "✓ Detected OS: $OS"
+}
+
+# Get package manager
+get_packageManager() {
+    case "$OS" in
+        arch)
+            if command -v paru &> /dev/null; then
+                PACKAGE_MANAGER="paru"
+            elif command -v yay &> /dev/null; then
+                PACKAGE_MANAGER="yay"
+            elif command -v pacman &> /dev/null; then
+                PACKAGE_MANAGER="pacman"
+            fi
+            ;;
+        fedora)
+            PACKAGE_MANAGER="dnf"
+            ;;
+        ubuntu)
+            if command -v nala &> /dev/null; then
+                PACKAGE_MANAGER="nala"
+            elif command -v apt &> /dev/null; then
+                PACKAGE_MANAGER="apt"
+            fi
+            ;;
+    esac
+
+    if [ -z "$PACKAGE_MANAGER" ]; then
+        gum style --foreground 196 "Error: No supported package manager found!"
         exit 1
     fi
 
-    log_success "Detected: ${BOLD}$DISTRO${NC}"
+    gum style --foreground 82 "✓ Package Manager: $PACKAGE_MANAGER"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Hyprland Installation & Verification
-# ═══════════════════════════════════════════════════════════════════════════
-check_hyprland() {
-    if command -v Hyprland &> /dev/null; then
-        HYPRLAND_VERSION=$(Hyprland --version 2>/dev/null | head -n1 || echo "unknown")
-        log_success "Hyprland found: ${HYPRLAND_VERSION}"
-        return 0
-    else
-        log_warning "Hyprland not detected"
-        return 1
-    fi
-}
+# Download dependencies
+download_Deps() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Installing Dependencies"
 
-install_hyprland() {
-    log_step "Installing/Updating Hyprland"
+    local base_deps=""
 
-    case $DISTRO in
-        arch|manjaro|endeavouros)
-            # Install yay if needed
-            if ! command -v yay &> /dev/null; then
-                log_info "Installing yay AUR helper..."
-                sudo pacman -S --needed --noconfirm git base-devel
+    case "$PACKAGE_MANAGER" in
+        paru|yay)
+            base_deps="base-devel git wget curl unzip hyprland waybar rofi-wayland dunst kitty fastfetch btop"
+            gum style --foreground 220 "Installing base dependencies with $PACKAGE_MANAGER..."
+            echo ""
+            $PACKAGE_MANAGER -S --needed $base_deps
+            ;;
+        pacman)
+            # Install paru first
+            if ! command -v paru &> /dev/null; then
+                gum style --foreground 220 "Installing paru AUR helper..."
                 cd /tmp
-                git clone https://aur.archlinux.org/yay.git
-                cd yay
-                makepkg -si --noconfirm
-                cd -
-                log_success "yay installed"
+                git clone https://aur.archlinux.org/paru.git
+                cd paru
+                makepkg -si
+                cd "$HOME"
+                PACKAGE_MANAGER="paru"
             fi
-
-            log_info "Installing Hyprland and required components..."
-            yay -S --needed --noconfirm hyprland hyprland-protocols xdg-desktop-portal-hyprland
-            yay -S --needed --noconfirm cmake meson cpio ninja base-devel
-
-            log_success "Hyprland installation complete"
+            base_deps="base-devel git wget curl unzip hyprland waybar rofi-wayland dunst kitty fastfetch btop"
+            gum style --foreground 220 "Installing base dependencies with paru..."
+            echo ""
+            paru -S --needed $base_deps
             ;;
-
-        fedora)
-            log_info "Installing Hyprland on Fedora..."
-            sudo dnf install -y hyprland hyprland-devel cmake meson cpio ninja-build
-            log_success "Hyprland installed"
+        dnf)
+            base_deps="git wget curl unzip hyprland waybar rofi dunst kitty fastfetch btop"
+            gum style --foreground 220 "Installing base dependencies..."
+            echo ""
+            sudo dnf install -y $base_deps
             ;;
-
-        ubuntu|debian|pop)
-            log_warning "Building Hyprland from source (this may take a while)..."
-            log_info "Installing build dependencies..."
-
-            sudo apt update
-            sudo apt install -y \
-                build-essential cmake meson ninja-build cpio \
-                libwayland-dev wayland-protocols \
-                libxcb-composite0-dev libxcb-ewmh-dev libxcb-icccm4-dev \
-                libxcb-render-util0-dev libxcb-res0-dev libxcb-xfixes0-dev \
-                libxcb-xinput-dev libxkbcommon-dev libpixman-1-dev \
-                libdrm-dev libseat-dev libinput-dev \
-                libpango1.0-dev libcairo2-dev \
-                hwdata libliftoff-dev libdisplay-info-dev \
-                git
-
-            log_info "Cloning and building Hyprland..."
-            cd /tmp
-            [ -d "Hyprland" ] && rm -rf Hyprland
-            git clone --recursive https://github.com/hyprwm/Hyprland
-            cd Hyprland
-            make all
-            sudo make install
-
-            log_success "Hyprland built and installed from source"
+        apt)
+            # Install nala if not present
+            if ! command -v nala &> /dev/null; then
+                gum style --foreground 220 "Installing nala..."
+                sudo apt update
+                sudo apt install -y nala
+                PACKAGE_MANAGER="nala"
+            fi
+            base_deps="git wget curl unzip build-essential kitty fastfetch btop"
+            gum style --foreground 220 "Updating repositories..."
+            sudo nala update
+            echo ""
+            gum style --foreground 220 "Installing base dependencies..."
+            sudo nala install -y $base_deps
             ;;
-
-        nixos)
-            log_warning "On NixOS, add to your configuration.nix:"
-            echo -e "${CYAN}  programs.hyprland.enable = true;${NC}"
-            read -p "Press enter when Hyprland is installed..."
-            ;;
-
-        *)
-            log_error "Unsupported distribution for automatic installation"
-            log_warning "Visit: https://hyprland.org for manual installation"
-            read -p "Press enter when Hyprland is installed..."
+        nala)
+            base_deps="git wget curl unzip build-essential kitty fastfetch btop"
+            gum style --foreground 220 "Updating repositories..."
+            sudo nala update
+            echo ""
+            gum style --foreground 220 "Installing base dependencies..."
+            sudo nala install -y $base_deps
             ;;
     esac
+
+    if [ $? -eq 0 ]; then
+        echo ""
+        gum style --foreground 82 "✓ Dependencies installed successfully!"
+    else
+        echo ""
+        gum style --foreground 196 "✗ Error installing dependencies!"
+        exit 1
+    fi
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Dependencies Installation
-# ═══════════════════════════════════════════════════════════════════════════
-install_dependencies() {
-    log_step "Installing Dependencies"
+# Clone dotfiles
+clone_dotfiles() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Cloning Hecate Dotfiles"
 
-    case $DISTRO in
-        arch|manjaro|endeavouros)
-            log_info "Installing packages via yay..."
-            yay -S --needed --noconfirm \
-                waybar \
-                fastfetch \
-                kitty \
-                firefox \
-                zsh \
-                cava \
-                rofi \
-                rofi-emoji \
-                grim \
-                slurp \
-                wl-clipboard \
-                jq \
-                libnotify \
-                swww \
-                wf-recorder \
-                hyprlock \
-                hypridle \
-                wlogout \
-                pavucontrol \
-                playerctl \
-                polkit-kde-agent \
-                xdg-desktop-portal-hyprland \
-                qt5-wayland \
-                qt6-wayland \
-                cliphist \
-                swaync \
-                waypaper \
-                exa
-
-            log_success "All dependencies installed"
-            ;;
-
-        fedora)
-            log_info "Installing packages via dnf..."
-            sudo dnf install -y \
-                waybar fastfetch kitty firefox zsh cava rofi \
-                grim slurp wl-clipboard jq libnotify wf-recorder \
-                pavucontrol playerctl
-
-            log_warning "Some packages (swww, hyprlock) may need manual installation"
-            log_success "Core dependencies installed"
-            ;;
-
-        ubuntu|debian|pop)
-            log_info "Installing packages via apt..."
-            sudo apt update
-            sudo apt install -y \
-                kitty firefox zsh cava rofi grim slurp \
-                wl-clipboard jq libnotify-bin wf-recorder \
-                pavucontrol playerctl
-
-            log_warning "waybar and some packages need manual installation"
-            log_success "Core dependencies installed"
-            ;;
-
-        nixos)
-            log_warning "Add required packages to configuration.nix"
-            echo -e "${CYAN}  environment.systemPackages = with pkgs; [${NC}"
-            echo -e "${CYAN}    waybar fastfetch kitty firefox zsh cava rofi${NC}"
-            echo -e "${CYAN}    grim slurp wl-clipboard jq libnotify swww${NC}"
-            echo -e "${CYAN}  ];${NC}"
-            read -p "Press enter when packages are installed..."
-            ;;
-
-        *)
-            log_error "Unsupported distribution"
-            log_warning "Please install dependencies manually"
-            read -p "Press enter to continue..."
-            ;;
-    esac
-}
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  Oh My Zsh Installation
-# ═══════════════════════════════════════════════════════════════════════════
-Set_zsh() {
-    log_step "Installing Oh My Zsh"
-
-    # Install Oh My Zsh if not already present
-    if [ -d "$HOME/.oh-my-zsh" ]; then
-        log_warning "Oh My Zsh already installed, skipping..."
-    else
-        log_info "Downloading and installing Oh My Zsh..."
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        log_success "Oh My Zsh installed"
-    fi
-
-    # Ensure ZSH_CUSTOM path
-    ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
-    log_info "Using ZSH_CUSTOM at: $ZSH_CUSTOM"
-
-    echo -e "${BLUE}Installing Zsh plugins and dependencies...${NC}"
-
-    # --- Plugins ---
-    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
-        git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-        log_success "zsh-autosuggestions installed"
-    else
-        log_warning "zsh-autosuggestions already exists, skipping..."
-    fi
-
-    if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
-        log_success "zsh-syntax-highlighting installed"
-    else
-        log_warning "zsh-syntax-highlighting already exists, skipping..."
-    fi
-
-    if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
-        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$ZSH_CUSTOM/themes/powerlevel10k"
-        log_success "Powerlevel10k installed"
-    else
-        log_warning "Powerlevel10k already exists, skipping..."
-    fi
-
-    # --- FZF ---
-    if [ ! -d "$HOME/.fzf" ]; then
-        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-        ~/.fzf/install --key-bindings --completion --no-update-rc --no-bash --no-fish
-        log_success "fzf installed"
-    else
-        log_warning "fzf already exists, skipping..."
-    fi
-
-    # --- Thefuck ---
-    if ! command -v thefuck &>/dev/null; then
-        if command -v pipx &>/dev/null; then
-            pipx install thefuck
-        elif command -v pip3 &>/dev/null; then
-            pip3 install --user thefuck
+    if [ -d "$HECATEDIR" ]; then
+        if gum confirm "Hecate directory already exists. Remove and re-clone?"; then
+            rm -rf "$HECATEDIR"
+        else
+            gum style --foreground 220 "Using existing directory..."
+            return
         fi
-        log_success "thefuck installed"
+    fi
+
+    gum style --foreground 220 "Cloning repository..."
+    git clone "$REPO_URL" "$HECATEDIR"
+
+    if [ $? -eq 0 ]; then
+        gum style --foreground 82 "✓ Dotfiles cloned successfully!"
     else
-        log_warning "thefuck already installed, skipping..."
+        gum style --foreground 196 "✗ Error cloning repository!"
+        exit 1
     fi
-    
-    log_info "Zsh setup complete. Remember to add plugins in ~/.zshrc:"
-    echo "plugins=(git zsh-autosuggestions zsh-syntax-highlighting)"
-    echo "ZSH_THEME=\"powerlevel10k/powerlevel10k\""
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  SDDM Display Manager Setup
-# ═══════════════════════════════════════════════════════════════════════════
-setup_sddm() {
-    log_step "Setting up SDDM Display Manager"
+# Backup config
+backup_config() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Backing Up Existing Configs"
 
-    # Check if SDDM is running
-    if systemctl is-active --quiet sddm.service 2>/dev/null; then
-        log_success "SDDM is already active"
-        return 0
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="$HOME/.config_backup_$timestamp"
+
+    if [ -d "$HECATEDIR/config" ]; then
+        mkdir -p "$backup_dir"
+
+        for folder in "$HECATEDIR/config"/*; do
+            if [ -d "$folder" ]; then
+                local folder_name=$(basename "$folder")
+                if [ -d "$CONFIGDIR/$folder_name" ]; then
+                    gum style --foreground 220 "Backing up: $folder_name"
+                    cp -r "$CONFIGDIR/$folder_name" "$backup_dir/"
+                fi
+            fi
+        done
+
+        gum style --foreground 82 "✓ Backup created at: $backup_dir"
     fi
-
-    # Check if SDDM is installed
-    if command -v sddm &> /dev/null; then
-        log_warning "SDDM installed but not active"
-        read -p "Enable SDDM? (y/N): " enable_sddm
-        if [[ "$enable_sddm" =~ ^[Yy]$ ]]; then
-            sudo systemctl enable sddm.service
-            sudo systemctl set-default graphical.target
-            log_success "SDDM enabled (active after reboot)"
-        fi
-        return 0
-    fi
-
-    # SDDM not found
-    log_warning "SDDM not detected on your system"
-    CURRENT_DM=$(systemctl status display-manager 2>/dev/null | grep -oP '(?<=Loaded: loaded \()[^;]+' || echo 'None')
-    echo -e "  Current display manager: ${YELLOW}${CURRENT_DM}${NC}"
-    echo ""
-    read -p "Install and switch to SDDM? (y/N): " install_sddm
-
-    if [[ ! "$install_sddm" =~ ^[Yy]$ ]]; then
-        log_info "Skipping SDDM installation"
-        return 0
-    fi
-
-    log_info "Installing SDDM..."
-
-    case $DISTRO in
-        arch|manjaro|endeavouros)
-            yay -S --needed --noconfirm sddm qt5-graphicaleffects qt5-quickcontrols2 qt5-svg
-            sudo systemctl enable sddm.service
-            sudo systemctl set-default graphical.target
-            ;;
-
-        fedora)
-            sudo dnf install -y sddm qt5-qtgraphicaleffects qt5-qtquickcontrols2 qt5-qtsvg
-            sudo systemctl enable sddm.service
-            sudo systemctl set-default graphical.target
-            ;;
-
-        ubuntu|debian|pop)
-            sudo apt update
-            sudo apt install -y sddm qml-module-qtquick-controls2 qml-module-qtgraphicaleffects
-            sudo systemctl enable sddm.service
-            sudo systemctl set-default graphical.target
-            ;;
-
-        nixos)
-            log_warning "On NixOS, add to configuration.nix:"
-            echo -e "${CYAN}  services.xserver.displayManager.sddm.enable = true;${NC}"
-            read -p "Press enter when configured..."
-            ;;
-
-        *)
-            log_error "Unsupported distribution for SDDM auto-install"
-            return 1
-            ;;
-    esac
-
-    log_success "SDDM installed and enabled"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Configuration Backup
-# ═══════════════════════════════════════════════════════════════════════════
-backup_configs() {
-    log_step "Backing Up Existing Configurations"
+# Move config files
+move_config() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Installing Configuration Files"
 
-    mkdir -p "$BACKUP_DIR"
+    if [ ! -d "$HECATEDIR/config" ]; then
+        gum style --foreground 196 "Error: Config directory not found!"
+        exit 1
+    fi
 
-    DIRS_TO_BACKUP=(
-        "hypr" "waybar" "kitty" "fastfetch"
-        "wlogout" "rofi" "swaync"
-    )
+    mkdir -p "$CONFIGDIR"
 
-    local backed_up=false
+    for folder in "$HECATEDIR/config"/*; do
+        if [ -d "$folder" ]; then
+            local folder_name=$(basename "$folder")
 
-    for dir in "${DIRS_TO_BACKUP[@]}"; do
-        if [ -d "$CONFIG_DIR/$dir" ]; then
-            log_info "Backing up ${BOLD}$dir${NC}..."
-            cp -r "$CONFIG_DIR/$dir" "$BACKUP_DIR/"
-            backed_up=true
+            case "$folder_name" in
+                zsh)
+                    if [ -f "$folder/.zshrc" ]; then
+                        gum style --foreground 82 "Installing .zshrc..."
+                        cp "$folder/.zshrc" "$HOME/.zshrc"
+                    fi
+                    ;;
+                bash)
+                    if [ -f "$folder/.bashrc" ]; then
+                        gum style --foreground 82 "Installing .bashrc..."
+                        cp "$folder/.bashrc" "$HOME/.bashrc"
+                    fi
+                    ;;
+                fish)
+                    gum style --foreground 82 "Installing fish config..."
+                    mkdir -p "$CONFIGDIR/fish"
+                    cp -r "$folder/"* "$CONFIGDIR/fish/"
+                    ;;
+                *)
+                    gum style --foreground 82 "Installing $folder_name..."
+                    rm -rf "$CONFIGDIR/$folder_name"
+                    cp -r "$folder" "$CONFIGDIR/"
+                    ;;
+            esac
         fi
     done
 
-    if [ -f "$HOME/.zshrc" ]; then
-        log_info "Backing up ${BOLD}.zshrc${NC}..."
-        cp "$HOME/.zshrc" "$BACKUP_DIR/.zshrc"
-        backed_up=true
+    gum style --foreground 82 "✓ Configuration hyprland dotfiles installed...!"
+    gum style --foreground 82 "Oh wait a sec it need some configuration...!"
+
+}
+
+setup_Waybar(){
+    gum style --foreground 82 "Configuring waybar..."
+    ln -s $HOME/.config/waybar/configs/top $HOME/.config/waybar/config
+    ln -s $HOME/.config/waybar/style/default.css $HOME/.config/waybar/style.css
+    gum style --foreground 82 "✓ Waybar configured...!"
+}
+
+# Setup Zsh
+setup_zsh() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Setting Up Zsh"
+
+    local packages="zsh fzf bat exa fd thefuck"
+
+    gum style --foreground 220 "Installing Zsh packages..."
+    echo ""
+
+    case "$PACKAGE_MANAGER" in
+        paru|yay|pacman)
+            sudo $PACKAGE_MANAGER -S --needed $packages
+            ;;
+        dnf)
+            sudo dnf install -y zsh fzf bat exa fd-find thefuck
+            ;;
+        nala|apt)
+            sudo $PACKAGE_MANAGER install -y zsh fzf bat exa fd-find thefuck
+            ;;
+    esac
+
+    echo ""
+
+    # Install Oh My Zsh
+    if [ ! -d "$HOME/.oh-my-zsh" ]; then
+        gum style --foreground 220 "Installing Oh My Zsh..."
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
     fi
 
-    if [ "$backed_up" = true ]; then
-        log_success "Backup saved to: ${BOLD}$BACKUP_DIR${NC}"
-    else
-        log_info "No existing configurations to backup"
+    # Install Powerlevel10k
+    if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
+        gum style --foreground 220 "Installing Powerlevel10k..."
+        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+    fi
+
+    # Install plugins
+    if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
+        gum style --foreground 220 "Installing zsh-autosuggestions..."
+        git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+    fi
+
+    if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
+        gum style --foreground 220 "Installing zsh-syntax-highlighting..."
+        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+    fi
+
+    echo ""
+
+    # Set zsh as default shell
+    if gum confirm "Set Zsh as default shell?"; then
+        chsh -s $(which zsh)
+        gum style --foreground 82 "✓ Zsh set as default shell!"
+    fi
+
+    gum style --foreground 82 "✓ Zsh setup complete!"
+}
+
+# Setup Bash
+setup_bash() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Setting Up Bash"
+
+    local packages="bash curl wget git unzip fzf fd bat exa kitty fastfetch thefuck net-tools"
+
+    gum style --foreground 220 "Installing Bash packages..."
+    echo ""
+
+    case "$PACKAGE_MANAGER" in
+        paru|yay|pacman)
+            sudo $PACKAGE_MANAGER -S --needed $packages
+            ;;
+        dnf)
+            sudo dnf install -y bash curl wget git unzip fzf fd-find bat exa kitty fastfetch thefuck net-tools
+            ;;
+        nala|apt)
+            sudo $PACKAGE_MANAGER install -y bash curl wget git unzip fzf fd-find bat exa kitty fastfetch thefuck net-tools
+            ;;
+    esac
+
+    echo ""
+    gum style --foreground 82 "✓ Bash setup complete!"
+}
+
+# Setup Fish
+setup_fish() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Setting Up Fish"
+
+    local packages="fish fzf bat exa thefuck net-tools"
+
+    gum style --foreground 220 "Installing Fish packages..."
+    echo ""
+
+    case "$PACKAGE_MANAGER" in
+        paru|yay|pacman)
+            sudo $PACKAGE_MANAGER -S --needed $packages fd fisher
+            ;;
+        dnf)
+            sudo dnf install -y fish fzf fd-find bat exa thefuck net-tools procps-ng coreutils
+            ;;
+        nala|apt)
+            sudo $PACKAGE_MANAGER install -y fish fzf fd-find bat exa thefuck net-tools procps coreutils
+            ;;
+    esac
+
+    echo ""
+
+    # Install fisher
+    if ! fish -c "type -q fisher" 2>/dev/null; then
+        gum style --foreground 220 "Installing Fisher..."
+        fish -c "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher"
+    fi
+
+    echo ""
+
+    # Set fish as default shell
+    if gum confirm "Set Fish as default shell?"; then
+        chsh -s $(which fish)
+        gum style --foreground 82 "✓ Fish set as default shell!"
+    fi
+
+    gum style --foreground 82 "✓ Fish setup complete!"
+}
+
+# Setup Shell
+setup_Shell() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Shell Configuration"
+
+    local shell_choice=$(gum choose "zsh" "bash" "fish" --header "Choose your shell:")
+
+    case "$shell_choice" in
+        zsh)
+            setup_zsh
+            ;;
+        bash)
+            setup_bash
+            ;;
+        fish)
+            setup_fish
+            ;;
+    esac
+}
+
+# Developer setup
+developer_setup() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Developer Setup"
+
+    local dev_types=$(gum choose --no-limit --header "Select development areas (space to select, enter to confirm):" \
+        "AI/ML" \
+        "Web Development" \
+        "Server/Backend" \
+        "Database" \
+        "Mobile Development" \
+        "DevOps" \
+        "Game Development")
+
+    local packages=""
+
+    if echo "$dev_types" | grep -q "AI/ML"; then
+        packages="$packages python python-pip python-pytorch python-numpy jupyter-notebook"
+    fi
+
+    if echo "$dev_types" | grep -q "Web Development"; then
+        packages="$packages nodejs npm yarn"
+    fi
+
+    if echo "$dev_types" | grep -q "Server/Backend"; then
+        packages="$packages docker docker-compose postgresql mysql"
+    fi
+
+    if echo "$dev_types" | grep -q "Database"; then
+        packages="$packages postgresql mysql sqlite redis"
+    fi
+
+    if echo "$dev_types" | grep -q "Mobile Development"; then
+        packages="$packages android-tools"
+    fi
+
+    if echo "$dev_types" | grep -q "DevOps"; then
+        packages="$packages docker docker-compose kubectl terraform ansible"
+    fi
+
+    if echo "$dev_types" | grep -q "Game Development"; then
+        packages="$packages godot blender"
+    fi
+
+    # Show selected packages
+    gum style --foreground 220 "Packages to install: $packages"
+
+    if gum confirm "Proceed with installation?"; then
+        echo ""
+        case "$PACKAGE_MANAGER" in
+            paru|yay)
+                $PACKAGE_MANAGER -S --needed $packages
+                ;;
+            pacman)
+                sudo pacman -S --needed $packages
+                ;;
+            dnf)
+                sudo dnf install -y $packages
+                ;;
+            nala|apt)
+                sudo $PACKAGE_MANAGER install -y $packages
+                ;;
+        esac
+
+        echo ""
+        gum style --foreground 82 "✓ Developer tools installed!"
+    fi
+
+    # Allow custom packages
+    if gum confirm "Add additional packages?"; then
+        local custom_packages=$(gum input --placeholder "Enter package names (space-separated)")
+        echo ""
+        case "$PACKAGE_MANAGER" in
+            paru|yay)
+                $PACKAGE_MANAGER -S --needed $custom_packages
+                ;;
+            pacman)
+                sudo pacman -S --needed $custom_packages
+                ;;
+            dnf)
+                sudo dnf install -y $custom_packages
+                ;;
+            nala|apt)
+                sudo $PACKAGE_MANAGER install -y $custom_packages
+                ;;
+        esac
     fi
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Repository Cloning
-# ═══════════════════════════════════════════════════════════════════════════
-clone_repo() {
-    log_step "Cloning Hecate Repository"
+# Gamer setup
+gamer_setup() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Gamer Setup"
 
-    if [ -d "$INSTALL_DIR" ]; then
-        log_warning "Installation directory exists, removing..."
-        rm -rf "$INSTALL_DIR"
+    local packages="steam lutris wine-staging gamemode lib32-gamemode mangohud lib32-mangohud"
+
+    gum style --foreground 220 "Installing gaming packages..."
+    echo ""
+
+    case "$PACKAGE_MANAGER" in
+        paru|yay)
+            $PACKAGE_MANAGER -S --needed $packages discord
+            ;;
+        pacman)
+            sudo pacman -S --needed $packages
+            ;;
+        dnf)
+            sudo dnf install -y steam lutris wine discord gamemode
+            ;;
+        nala|apt)
+            sudo $PACKAGE_MANAGER install -y steam lutris wine discord gamemode
+            ;;
+    esac
+
+    echo ""
+
+    if gum confirm "Install emulators?"; then
+        local emulators=$(gum choose --no-limit --header "Select emulators:" \
+            "RetroArch" \
+            "PCSX2 (PS2)" \
+            "Dolphin (GameCube/Wii)" \
+            "RPCS3 (PS3)" \
+            "Yuzu (Switch)" \
+            "Cemu (Wii U)")
+
+        local emu_packages=""
+
+        echo "$emulators" | grep -q "RetroArch" && emu_packages="$emu_packages retroarch"
+        echo "$emulators" | grep -q "PCSX2" && emu_packages="$emu_packages pcsx2"
+        echo "$emulators" | grep -q "Dolphin" && emu_packages="$emu_packages dolphin-emu"
+        echo "$emulators" | grep -q "RPCS3" && emu_packages="$emu_packages rpcs3"
+        echo "$emulators" | grep -q "Yuzu" && emu_packages="$emu_packages yuzu"
+        echo "$emulators" | grep -q "Cemu" && emu_packages="$emu_packages cemu"
+
+        echo ""
+
+        case "$PACKAGE_MANAGER" in
+            paru|yay)
+                $PACKAGE_MANAGER -S --needed $emu_packages
+                ;;
+            *)
+                gum style --foreground 220 "Some emulators may not be available for your distro"
+                ;;
+        esac
     fi
 
-    log_info "Cloning from: ${BOLD}$REPO_URL${NC}"
-    git clone "$REPO_URL" "$INSTALL_DIR"
-    log_success "Repository cloned to: ${BOLD}$INSTALL_DIR${NC}"
+    echo ""
+    gum style --foreground 82 "✓ Gaming setup complete!"
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Dotfiles Installation
-# ═══════════════════════════════════════════════════════════════════════════
-install_dotfiles() {
-    log_step "Installing Dotfiles"
-
-    cd "$INSTALL_DIR"
-
-    # Create necessary directories
-    mkdir -p "$CONFIG_DIR"/{waybar,kitty,fastfetch}
-
-    # Install Hypr configuration
-    if [ -d "config/hypr" ]; then
-        log_info "Installing ${BOLD}Hypr${NC} configuration..."
-        [ -d "$CONFIG_DIR/hypr" ] && rm -rf "$CONFIG_DIR/hypr"
-        cp -r "config/hypr" "$CONFIG_DIR/"
-        chmod +x "$CONFIG_DIR/hypr/scripts/"*.sh
-        log_success "Hypr installed"
-    fi
-
-    # Install wlogout
-    if [ -d "config/wlogout" ]; then
-        log_info "Installing ${BOLD}wlogout${NC} configuration..."
-        [ -d "$CONFIG_DIR/wlogout" ] && rm -rf "$CONFIG_DIR/wlogout"
-        cp -r "config/wlogout" "$CONFIG_DIR/"
-        log_success "wlogout installed"
-    fi
-
-    # Install Waybar with symlinks
-    if [ -d "config/waybar" ]; then
-        log_info "Installing ${BOLD}Waybar${NC} configuration..."
-
-        [ -d "$CONFIG_DIR/waybar/configs" ] && rm -rf "$CONFIG_DIR/waybar/configs"
-        [ -d "$CONFIG_DIR/waybar/style" ] && rm -rf "$CONFIG_DIR/waybar/style"
-        [ -d "$CONFIG_DIR/waybar/module" ] && rm -rf "$CONFIG_DIR/waybar/module"
-
-        cp -r "config/waybar/configs" "$CONFIG_DIR/waybar/"
-        cp -r "config/waybar/style" "$CONFIG_DIR/waybar/"
-        cp -r "config/waybar/module" "$CONFIG_DIR/waybar/"
-
-        # Create symlinks
-        [ -L "$CONFIG_DIR/waybar/config" ] && rm "$CONFIG_DIR/waybar/config"
-        [ -L "$CONFIG_DIR/waybar/style.css" ] && rm "$CONFIG_DIR/waybar/style.css"
-
-        ln -sf "$CONFIG_DIR/waybar/configs/top" "$CONFIG_DIR/waybar/config"
-        ln -sf "$CONFIG_DIR/waybar/style/default.css" "$CONFIG_DIR/waybar/style.css"
-
-        log_success "Waybar installed with symlinks"
-    fi
-
-    # Install Kitty
-    if [ -f "config/kitty/kitty.conf" ]; then
-        log_info "Installing ${BOLD}Kitty${NC} configuration..."
-        cp "config/kitty/kitty.conf" "$CONFIG_DIR/kitty/"
-        log_success "Kitty installed"
-    fi
-
-    # Install Fastfetch
-    if [ -f "config/fastfetch/config.jsonc" ]; then
-        log_info "Installing ${BOLD}Fastfetch${NC} configuration..."
-        cp "config/fastfetch/config.jsonc" "$CONFIG_DIR/fastfetch/"
-        log_success "Fastfetch installed"
-    fi
-
-    # Install Zsh config
-    if [ -f "config/zsh/.zshrc" ]; then
-        log_info "Installing ${BOLD}.zshrc${NC} to home directory..."
-        [ -f "$HOME/.zshrc" ] && mv "$HOME/.zshrc" "$BACKUP_DIR/.zshrc.bak"
-        cp "config/zsh/.zshrc" "$HOME/"
-        log_success ".zshrc installed"
-    fi
-
-    log_success "All dotfiles installed successfully"
+# Madlad setup
+madlad_Setup() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Madlad Setup (Developer + Gamer)"
+    developer_setup
+    gamer_setup
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  SDDM Theme Installation
-# ═══════════════════════════════════════════════════════════════════════════
-install_sddm_theme() {
-    log_step "Installing SDDM Astronaut Theme"
+# User profile
+User_Profile() {
+    gum style --border double --padding "1 2" --border-foreground 212 "User Profile Selection"
 
-    if ! command -v sddm &> /dev/null; then
-        log_warning "SDDM not installed, skipping theme"
-        return 0
-    fi
+    local profile=$(gum choose --header "Select your profile:" \
+        "minimal (default)" \
+        "developer" \
+        "gamer" \
+        "madlad (dev + gamer)")
 
-    read -p "Install SDDM Astronaut Theme? (y/N): " install_theme
-    if [[ ! "$install_theme" =~ ^[Yy]$ ]]; then
-        log_info "Skipping theme installation"
-        return 0
-    fi
-
-    log_info "Downloading and installing theme..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/keyitdev/sddm-astronaut-theme/master/setup.sh)"
-
-    log_success "SDDM Astronaut theme installed"
+    case "$profile" in
+        "developer")
+            developer_setup
+            ;;
+        "gamer")
+            gamer_setup
+            ;;
+        "madlad (dev + gamer)")
+            madlad_Setup
+            ;;
+        *)
+            gum style --foreground 82 "✓ Minimal setup selected"
+            ;;
+    esac
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Shell Configuration
-# ═══════════════════════════════════════════════════════════════════════════
-set_zsh_shell() {
-    log_step "Configuring Zsh Shell"
+# Set SDDM
+set_Sddm() {
+    if gum confirm "Switch to SDDM login manager?"; then
+        gum style --border double --padding "1 2" --border-foreground 212 "Installing SDDM"
 
-    if [ "$SHELL" != "$(which zsh)" ]; then
-        log_info "Setting Zsh as default shell..."
-        chsh -s "$(which zsh)"
-        log_success "Zsh set as default shell"
-    else
-        log_success "Zsh is already the default shell"
+        case "$PACKAGE_MANAGER" in
+            paru|yay|pacman)
+                sudo pacman -S --noconfirm sddm
+                sudo systemctl enable sddm
+                sudo systemctl set-default graphical.target
+                ;;
+            dnf)
+                sudo dnf install -y sddm
+                sudo systemctl enable sddm
+                sudo systemctl set-default graphical.target
+                ;;
+            nala|apt)
+                sudo $PACKAGE_MANAGER install -y sddm
+                sudo systemctl enable sddm
+                sudo systemctl set-default graphical.target
+                ;;
+        esac
+
+        gum style --foreground 82 "✓ SDDM installed and enabled!"
     fi
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Hyprland Plugins Setup
-# ═══════════════════════════════════════════════════════════════════════════
-install_plugins() {
-    log_step "Preparing Hyprland Plugins"
-
-    cat > "$HOME/.hecate-install-plugins.sh" << 'EOF'
-#!/bin/bash
-# ═══════════════════════════════════════════════════════════════════════════
-#  Hecate - Hyprland Plugins Installer
-#  Run this AFTER logging into Hyprland
-# ═══════════════════════════════════════════════════════════════════════════
-
-set -e
-
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-echo -e "${CYAN}${BOLD}╔═══════════════════════════════════════╗${NC}"
-echo -e "${CYAN}${BOLD}║   Hecate Plugin Installer            ║${NC}"
-echo -e "${CYAN}${BOLD}╚═══════════════════════════════════════╝${NC}\n"
-
-# Check if in Hyprland
-if [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
-    echo -e "${RED}[✗] Not running in Hyprland!${NC}"
-    echo -e "${YELLOW}Please log into Hyprland first${NC}"
-    exit 1
-fi
-
-# Check hyprpm
-if ! command -v hyprpm &>/dev/null; then
-    echo -e "${RED}[✗] hyprpm not found!${NC}"
-    exit 1
-fi
-
-echo -e "${CYAN}[INFO] Updating Hyprland headers...${NC}"
-hyprpm update
-
-echo -e "${CYAN}[INFO] Installing hyprfocus...${NC}"
-hyprpm add https://github.com/pyt0xic/hyprfocus || true
-
-echo -e "${CYAN}[INFO] Installing Hyprspace...${NC}"
-hyprpm add https://github.com/KZDKM/Hyprspace || true
-
-echo -e "${CYAN}[INFO] Enabling plugins...${NC}"
-hyprpm enable hyprfocus || true
-hyprpm enable Hyprspace || true
-
-echo -e "${CYAN}[INFO] Reloading Hyprland...${NC}"
-hyprpm reload
-hyprctl reload
-
-notify-send "Hecate" "Plugins installed successfully! 🎉" || true
-
-echo -e "\n${GREEN}${BOLD}[✓] Plugins installed and enabled!${NC}"
-echo -e "${YELLOW}You can now delete this script:${NC}"
-echo -e "  rm ~/.hecate-install-plugins.sh\n"
-EOF
-
-    chmod +x "$HOME/.hecate-install-plugins.sh"
-
-    log_success "Plugin installer created: ${BOLD}~/.hecate-install-plugins.sh${NC}"
-    log_info "Run this script ${BOLD}AFTER${NC} logging into Hyprland"
+# Set SDDM theme
+set_Sddm_Theme() {
+    if gum confirm "Install SDDM Astronaut theme?"; then
+        gum spin --spinner dot --title "Installing SDDM theme..." -- sh -c "$(curl -fsSL https://raw.githubusercontent.com/keyitdev/sddm-astronaut-theme/master/setup.sh)"
+        gum style --foreground 82 "✓ SDDM theme installed!"
+    fi
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Main Installation Flow
-# ═══════════════════════════════════════════════════════════════════════════
+# Install Hyprland plugins
+install_hyprland_plugins() {
+    gum style --border double --padding "1 2" --border-foreground 212 "Installing Hyprland Plugins"
+
+    if ! command -v hyprpm &> /dev/null; then
+        gum style --foreground 220 "Installing hyprpm..."
+        case "$PACKAGE_MANAGER" in
+            paru|yay)
+                $PACKAGE_MANAGER -S --noconfirm hyprpm
+                ;;
+            *)
+                gum style --foreground 196 "hyprpm not available for this distro"
+                return
+                ;;
+        esac
+    fi
+
+    local plugins=$(gum choose --no-limit --header "Select Hyprland plugins:" \
+        "hyprland-plugins" \
+        "hy3" \
+        "hyprexpo" \
+        "Skip")
+
+    if echo "$plugins" | grep -q "Skip"; then
+        return
+    fi
+
+    echo "$plugins" | while read -r plugin; do
+        [ -n "$plugin" ] && gum spin --spinner dot --title "Installing $plugin..." -- hyprpm add "$plugin"
+    done
+
+    gum style --foreground 82 "✓ Hyprland plugins installed!"
+}
+
+# Set GRUB theme
+setGrub_Theme() {
+    if [ ! -d "/boot/grub" ] && [ ! -d "/boot/grub2" ]; then
+        gum style --foreground 220 "GRUB not detected, skipping..."
+        return
+    fi
+
+    if gum confirm "Install a GRUB theme?"; then
+        gum style --border double --padding "1 2" --border-foreground 212 "GRUB Themes"
+
+        local theme=$(gum choose --header "Select GRUB theme:" \
+            "Catppuccin" \
+            "Dracula" \
+            "Nordic" \
+            "Cyberpunk" \
+            "Skip")
+
+        case "$theme" in
+            "Catppuccin")
+                git clone https://github.com/catppuccin/grub.git /tmp/grub-theme
+                sudo cp -r /tmp/grub-theme/src/* /boot/grub/themes/
+                ;;
+            "Dracula")
+                git clone https://github.com/dracula/grub.git /tmp/grub-theme
+                sudo mkdir -p /boot/grub/themes/dracula
+                sudo cp -r /tmp/grub-theme/* /boot/grub/themes/dracula/
+                ;;
+            "Nordic")
+                git clone https://github.com/Lxtharia/minegrub-theme.git /tmp/grub-theme
+                cd /tmp/grub-theme
+                sudo ./install.sh
+                ;;
+            "Cyberpunk")
+                git clone https://github.com/VandalByte/grub2-cyberpunk.git /tmp/grub-theme
+                cd /tmp/grub-theme
+                sudo ./install.sh
+                ;;
+            *)
+                return
+                ;;
+        esac
+
+        sudo grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+        gum style --foreground 82 "✓ GRUB theme installed!"
+    fi
+}
+
+# Main function
 main() {
-    print_banner
+    clear
 
-    echo -e "${YELLOW}${BOLD}This installer will:${NC}"
-    echo -e "  ${CYAN}→${NC} Detect your Linux distribution"
-    echo -e "  ${CYAN}→${NC} Install/Update Hyprland"
-    echo -e "  ${CYAN}→${NC} Install required dependencies"
-    echo -e "  ${CYAN}→${NC} Setup SDDM display manager"
-    echo -e "  ${CYAN}→${NC} Backup existing configurations"
-    echo -e "  ${CYAN}→${NC} Clone and install Hecate dotfiles"
-    echo -e "  ${CYAN}→${NC} Install SDDM Astronaut theme"
-    echo -e "  ${CYAN}→${NC} Configure shell and plugins\n"
+    # Check for gum first
+    check_gum
 
-    read -p "$(echo -e ${BOLD}Continue with installation? ${NC}${GREEN}[y/N]${NC}: )" confirm
+    # Welcome banner
+    gum style \
+        --foreground 212 --border-foreground 212 --border double \
+        --align center --width 50 --margin "1 2" --padding "2 4" \
+        'HECATE DOTFILES' 'Hyprland Configuration Installer' ''
 
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        log_warning "Installation cancelled"
-        exit 0
+    gum style --foreground 220 "Starting installation process..."
+    sleep 1
+
+    # Run installation steps
+    check_OS
+    get_packageManager
+    download_Deps
+    clone_dotfiles
+    backup_config
+    move_config
+    setup_Waybar
+    setup_Shell
+    User_Profile
+    install_hyprland_plugins
+    set_Sddm
+    set_Sddm_Theme
+    setGrub_Theme
+
+    # Completion message
+    gum style \
+        --foreground 82 --border-foreground 82 --border double \
+        --align center --width 50 --margin "1 2" --padding "2 4" \
+        '✓ Installation Complete!' '' 'Please reboot your system to apply all changes.'
+
+    if gum confirm "Reboot now?"; then
+        sudo reboot
     fi
-
-    echo ""
-
-    # Execute installation steps
-    detect_distro
-
-    # Hyprland check and install
-    if ! check_hyprland; then
-        log_warning "Hyprland not found"
-        install_hyprland
-    else
-        read -p "Update Hyprland? (y/N): " update_hypr
-        [[ "$update_hypr" =~ ^[Yy]$ ]] && install_hyprland
-    fi
-
-    install_dependencies
-    Set_zsh
-    setup_sddm
-    backup_configs
-    clone_repo
-    install_dotfiles
-    install_sddm_theme
-    set_zsh_shell
-    install_plugins
-
-    # Success message
-    echo ""
-    echo -e "${GREEN}${BOLD}╔═══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${NC}"
-    echo -e "${GREEN}${BOLD}║              ✨  I N S T A L L A T I O N                      ║${NC}"
-    echo -e "${GREEN}${BOLD}║                  C O M P L E T E !                            ║${NC}"
-    echo -e "${GREEN}${BOLD}║                                                               ║${NC}"
-    echo -e "${GREEN}${BOLD}╚═══════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    log_success "Hecate dotfiles installed successfully!"
-    echo ""
-    echo -e "${CYAN}${BOLD}Next Steps:${NC}"
-    echo -e "  ${CYAN}1.${NC} Log out and log back in"
-    echo -e "  ${CYAN}2.${NC} Select ${BOLD}Hyprland${NC} at the login screen"
-    echo -e "  ${CYAN}3.${NC} Run: ${BOLD}~/.hecate-install-plugins.sh${NC}"
-    echo -e "  ${CYAN}4.${NC} Backup location: ${BOLD}$BACKUP_DIR${NC}"
-    echo ""
-    echo -e "${CYAN}${BOLD}Resources:${NC}"
-    echo -e "  ${CYAN}→${NC} Keybindings: ${BOLD}~/.config/hypr/configs/keybinds.conf${NC}"
-    echo -e "  ${CYAN}→${NC} Documentation: ${BOLD}https://github.com/Aelune/Hecate/tree/main/documentation/hyprland/${NC}"
-    echo -e "  ${CYAN}→${NC} Repository: ${BOLD}https://github.com/Aelune/hecate${NC}"
-    echo ""
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  Execute Main Function
-# ═══════════════════════════════════════════════════════════════════════════
+# Run main function
 main
