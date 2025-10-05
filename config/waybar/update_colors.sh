@@ -1,14 +1,93 @@
-/*
- _   _ _____ ____    _  _____ _____
-| | | | ____/ ___|  / \|_   _| ____|     /\_/\
-| |_| |  _|| |     / _ \ | | |  _|      ( o.o )
-|  _  | |__| |___ / ___ \| | | |___      > ^ <
-|_| |_|_____\____/_/   \_\_| |_____|
-*/
+#!/usr/bin/env bash
 
-/* ==================== FONT & BASE SETTINGS ==================== */
+#  _   _ _____ ____    _  _____ _____
+# | | | | ____/ ___|  / \|_   _| ____|     /\_/\
+# | |_| |  _|| |     / _ \ | | |  _|      ( o.o )
+# |  _  | |__| |___ / ___ \| | | |___      > ^ <
+# |_| |_|_____\____/_/   \_\_| |_____|
+
+COLOR_FILE="$HOME/.cache/wal/colors.json"
+OUTPUT_FILE="$HOME/.config/waybar/style/default.css"
+
+# Verify colors.json exists and is readable
+if [ ! -f "$COLOR_FILE" ]; then
+    echo "Error: wal colors.json not found at $COLOR_FILE"
+    exit 1
+fi
+
+# Verify jq is installed
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is not installed"
+    exit 1
+fi
+
+# Extract colors with error checking
+extract_color() {
+    local key="$1"
+    local value
+    value=$(jq -r "$key" "$COLOR_FILE" 2>/dev/null)
+    if [ -z "$value" ] || [ "$value" = "null" ]; then
+        echo "Error: Failed to extract $key from colors.json"
+        exit 1
+    fi
+    echo "$value"
+}
+
+# Extract all colors
+COLOR0=$(extract_color '.colors.color0')
+COLOR1=$(extract_color '.colors.color1')
+COLOR2=$(extract_color '.colors.color2')
+COLOR3=$(extract_color '.colors.color3')
+COLOR4=$(extract_color '.colors.color4')
+COLOR5=$(extract_color '.colors.color5')
+COLOR6=$(extract_color '.colors.color6')
+COLOR7=$(extract_color '.colors.color7')
+COLOR8=$(extract_color '.colors.color8')
+COLOR9=$(extract_color '.colors.color9')
+COLOR10=$(extract_color '.colors.color10')
+COLOR11=$(extract_color '.colors.color11')
+COLOR12=$(extract_color '.colors.color12')
+COLOR13=$(extract_color '.colors.color13')
+COLOR14=$(extract_color '.colors.color14')
+COLOR15=$(extract_color '.colors.color15')
+BACKGROUND=$(extract_color '.special.background')
+FOREGROUND=$(extract_color '.special.foreground')
+
+# Convert hex to rgba function
+hex_to_rgba() {
+    local hex=$1
+    local alpha=$2
+    hex=${hex#"#"}
+
+    if [ ${#hex} -ne 6 ]; then
+        echo "Error: Invalid hex color: $hex"
+        return 1
+    fi
+
+    local r=$((16#${hex:0:2}))
+    local g=$((16#${hex:2:2}))
+    local b=$((16#${hex:4:2}))
+    echo "rgba($r, $g, $b, $alpha)"
+}
+
+# Generate RGBA colors
+COLOR4_RGBA=$(hex_to_rgba "$COLOR4" "0.15")
+COLOR4_RGBA_HOVER=$(hex_to_rgba "$COLOR4" "0.4")
+COLOR4_RGBA_BORDER=$(hex_to_rgba "$COLOR4" "0.6")
+COLOR1_RGBA=$(hex_to_rgba "$COLOR1" "0.4")
+COLOR1_RGBA_BORDER=$(hex_to_rgba "$COLOR1" "0.6")
+BG_RGBA=$(hex_to_rgba "$BACKGROUND" "0.2")
+BG_DARK=$(hex_to_rgba "$BACKGROUND" "0.5")
+
+# Create backup
+if [ -f "$OUTPUT_FILE" ]; then
+    cp "$OUTPUT_FILE" "${OUTPUT_FILE}.backup"
+fi
+
+# Generate the CSS file
+cat > "$OUTPUT_FILE" <<EOF
 /* Waybar Dynamic Theme - Generated from Pywal */
-/* Generated: 05-10-25 18:38:15 */
+/* Generated: $(date '+%d-%m-%y %H:%M:%S') */
 
 /* ==================== FONT & BASE SETTINGS ==================== */
 * {
@@ -34,7 +113,7 @@ window#waybar.hidden {
 window#waybar.empty,
 window#waybar.empty #window {
 	border: none;
-	background-color: #101012;
+	background-color: ${BACKGROUND};
 }
 
 /* ==================== WORKSPACES ==================== */
@@ -44,7 +123,7 @@ window#waybar.empty #window {
 }
 
 #workspaces button {
-	color: #59596d;
+	color: ${COLOR8};
 	border-radius: 10px;
 	padding: 4px 12px;
 	margin: 0px 3px;
@@ -55,24 +134,24 @@ window#waybar.empty #window {
 }
 
 #workspaces button:hover {
-	color: #B1A589;
+	color: ${COLOR4};
 }
 
 #workspaces button.active {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-weight: 600;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 #workspaces button.active:hover {
-	color: #B1A589;
+	color: ${COLOR4};
 	font-weight: 600;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #workspaces button.urgent {
-	color: #847B66;
-	background: rgba(132, 123, 102, 0.4);
-	border: 2px solid #847B66;
+	color: ${COLOR1};
+	background: ${COLOR1_RGBA};
+	border: 2px solid ${COLOR1};
 	animation: urgent-pulse 1s ease-in-out infinite;
 }
 
@@ -109,7 +188,7 @@ window#waybar.empty #window {
 #pulseaudio:hover,
 #custom-swaync:hover,
 #network:hover {
-	color: #B1A589;
+	color: ${COLOR4};
     background-color: transparent;
 }
 
@@ -118,18 +197,18 @@ window#waybar.empty #window {
 	margin-left: 8px;
 	padding: 4px 12px;
 	font-size: 18px;
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	border-radius: 10px;
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #custom-dMenu:hover {
-	color: #B1A589;
+	color: ${COLOR4};
 }
 
 /* ==================== CLOCK ==================== */
 #clock {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-weight: 600;
 	padding: 4px 16px;
 	margin: 0px 8px;
@@ -137,7 +216,7 @@ window#waybar.empty #window {
 
 /* ==================== CPU & MEMORY ==================== */
 #cpu {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-weight: 500;
 }
 
@@ -151,7 +230,7 @@ window#waybar.empty #window {
 }
 
 #memory {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-weight: 500;
 }
 
@@ -167,12 +246,12 @@ window#waybar.empty #window {
 
 /* ==================== DISK ==================== */
 #disk {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 }
 
 /* ==================== TEMPERATURE ==================== */
 #temperature {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 }
 
 #temperature.critical {
@@ -182,34 +261,34 @@ window#waybar.empty #window {
 
 /* ==================== AUDIO ==================== */
 #pulseaudio {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	padding: 4px 10px;
 	font-size: 16px;
 }
 
 #pulseaudio.muted {
-	color: #59596d;
+	color: ${COLOR8};
 	opacity: 0.6;
 }
 
 #pulseaudio#microphone {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-size: 14px;
 }
 
 #pulseaudio#microphone.source-muted {
-	color: #59596d;
+	color: ${COLOR8};
 	opacity: 0.6;
 }
 
 /* ==================== IDLE INHIBITOR ==================== */
 #idle_inhibitor {
-	color: #59596d;
+	color: ${COLOR8};
 }
 
 #idle_inhibitor.activated {
-	color: #78837B;
-	background: rgba(177, 165, 137, 0.15);
+	color: ${COLOR10};
+	background: ${COLOR4_RGBA};
 }
 
 /* ==================== POWER PROFILES ==================== */
@@ -227,7 +306,7 @@ window#waybar.empty #window {
 
 /* ==================== WINDOW TITLE ==================== */
 #window {
-	color: #B1A589;
+	color: ${COLOR4};
 	font-weight: 600;
 	padding: 4px 16px;
 }
@@ -244,13 +323,13 @@ window#waybar.empty #window {
 
 /* ==================== NOTIFICATIONS ==================== */
 #custom-swaync {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-size: 16px;
 }
 
 /* ==================== POWER BUTTON ==================== */
 #custom-power {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	padding: 4px 12px;
 	margin: 0px 4px;
 	font-size: 16px;
@@ -260,7 +339,7 @@ window#waybar.empty #window {
 }
 
 #custom-power:hover {
-	color: #847B66;
+	color: ${COLOR1};
 }
 
 /* ==================== TRAY ==================== */
@@ -274,52 +353,52 @@ window#waybar.empty #window {
 
 #tray > .needs-attention {
 	-gtk-icon-effect: highlight;
-	background: rgba(132, 123, 102, 0.4);
+	background: ${COLOR1_RGBA};
 	border-radius: 6px;
 }
 
 #tray menu {
-	background: #101012;
-	color: #c3c3c3;
-	border: 1px solid rgba(177, 165, 137, 0.15);
+	background: ${COLOR0};
+	color: ${FOREGROUND};
+	border: 1px solid ${COLOR4_RGBA};
 	border-radius: 8px;
 	padding: 4px;
 }
 
 /* ==================== NETWORK ==================== */
 #network {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-size: 16px;
 	padding: 4px 10px;
 }
 
 #network.connected {
-	color: #78837B;
+	color: ${COLOR10};
 }
 
 #network.disconnected {
-	color: #847B66;
+	color: ${COLOR1};
 	opacity: 0.6;
 }
 
 #network.disabled {
-	color: #59596d;
+	color: ${COLOR8};
 	opacity: 0.5;
 }
 
 /* ==================== BLUETOOTH ==================== */
 #bluetooth {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 	font-size: 16px;
 	padding: 4px 10px;
 }
 
 #bluetooth.connected {
-	color: #B1A589;
+	color: ${COLOR12};
 }
 
 #bluetooth.disabled {
-	color: #59596d;
+	color: ${COLOR8};
 	opacity: 0.5;
 }
 
@@ -328,7 +407,7 @@ window#waybar.empty #window {
 	padding: 2px 8px;
 	border-radius: 10px;
 	margin: 2px 4px;
-	box-shadow: 0 2px 8px rgba(16, 16, 18, 0.2);
+	box-shadow: 0 2px 8px ${BG_RGBA};
 }
 
 #taskbar button {
@@ -340,14 +419,14 @@ window#waybar.empty #window {
 }
 
 #taskbar button.urgent {
-	background: rgba(132, 123, 102, 0.4);
-	border: 2px solid #847B66;
+	background: ${COLOR1_RGBA};
+	border: 2px solid ${COLOR1};
 	animation: urgent-pulse 1s ease-in-out infinite;
 }
 
 #taskbar button.minimized {
 	opacity: 0.5;
-	background: rgba(16, 16, 18, 0.2);
+	background: ${BG_RGBA};
 }
 
 #taskbar.empty {
@@ -368,14 +447,31 @@ window#waybar.empty #window {
 
 /* ==================== TOOLTIPS ==================== */
 tooltip {
-	background: #101012;
-	color: #c3c3c3;
-	border: 1px solid rgba(177, 165, 137, 0.4);
+	background: ${COLOR0};
+	color: ${FOREGROUND};
+	border: 1px solid ${COLOR4_RGBA_HOVER};
 	border-radius: 8px;
 	padding: 8px 12px;
 	font-size: 12px;
 }
 
 tooltip label {
-	color: #c3c3c3;
+	color: ${FOREGROUND};
 }
+EOF
+
+# Verify file was created successfully
+if [ ! -f "$OUTPUT_FILE" ]; then
+    echo "Error: Failed to create CSS file"
+    exit 1
+fi
+
+echo "✓ Waybar theme updated (BG: $BACKGROUND, Hover: $COLOR4)"
+
+# Reload Waybar
+if pgrep -x waybar > /dev/null; then
+    pkill -SIGUSR2 waybar
+    echo "✓ Waybar reloaded"
+else
+    echo "! Waybar is not running"
+fi
